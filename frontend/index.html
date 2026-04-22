@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel Estratégico Geral — Sergipe</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;overflow:hidden;}
+body{display:flex;flex-direction:column;background:#eef2f7;font-family:'Segoe UI',Calibri,Arial,sans-serif;color:#1a2742;}
+
+/* HEADER */
+#header{background:#08365f;height:56px;flex-shrink:0;display:flex;align-items:center;padding:0 16px;gap:12px;}
+#header img.logo-aracaju{height:40px;}
+#header img.logo-sergipe{height:42px;margin-left:auto;}
+.hdr-title{flex:1;text-align:center;}
+.hdr-title h1{font-size:18px;font-weight:800;color:#fff;letter-spacing:1px;text-transform:uppercase;line-height:1.1;}
+.hdr-title h2{font-size:10px;font-weight:400;color:rgba(255,255,255,0.6);letter-spacing:2px;text-transform:uppercase;margin-top:1px;}
+
+/* TABS */
+#tabs{background:#fff;flex-shrink:0;display:flex;align-items:center;padding:0 12px;gap:4px;border-bottom:2px solid #d6e1ee;height:42px;}
+.tab-btn{padding:6px 14px;border:none;background:none;font-size:12px;font-weight:700;color:#5a7190;cursor:pointer;border-radius:4px;letter-spacing:0.3px;text-transform:uppercase;transition:all .15s;white-space:nowrap;}
+.tab-btn:hover{background:#eef2f7;color:#08365f;}
+.tab-btn.active{background:#08365f;color:#fff;}
+
+/* BODY */
+#body{flex:1;display:flex;overflow:hidden;min-height:0;}
+
+/* SIDEBAR */
+#sidebar{width:232px;flex-shrink:0;background:#fff;border-right:1px solid #d6e1ee;display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden;}
+#sidebar::-webkit-scrollbar{width:3px;}
+#sidebar::-webkit-scrollbar-thumb{background:rgba(8,54,95,.15);}
+
+.sb-section{padding:10px 10px 6px;}
+.sb-label{font-size:10px;font-weight:800;color:#08365f;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;display:flex;align-items:center;gap:4px;}
+.sb-label span{font-weight:400;color:#8a9bb5;}
+
+/* Donut */
+.donut-wrap{position:relative;width:120px;height:120px;margin:0 auto 4px;}
+.donut-wrap canvas{position:absolute;top:0;left:0;}
+.donut-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;}
+.donut-num{font-size:22px;font-weight:800;color:#08365f;line-height:1;}
+.donut-sub{font-size:9px;color:#8a9bb5;text-transform:uppercase;letter-spacing:.5px;}
+
+/* Legend */
+.legend{display:flex;flex-direction:column;gap:3px;margin-top:4px;}
+.leg-item{display:flex;align-items:center;gap:5px;font-size:10px;color:#3d5470;}
+.leg-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.leg-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.leg-qty{font-weight:700;color:#08365f;}
+
+/* Chips */
+.chips{display:flex;flex-wrap:wrap;gap:4px;}
+.chip{padding:3px 9px;border-radius:12px;font-size:10px;font-weight:700;cursor:pointer;border:1.5px solid #c5d3e3;background:#fff;color:#3d5470;transition:all .12s;letter-spacing:.2px;}
+.chip:hover{border-color:#08365f;color:#08365f;}
+.chip.active{background:#08365f;border-color:#08365f;color:#fff;}
+
+/* Search */
+.sb-search{width:100%;padding:5px 8px;border:1.5px solid #c5d3e3;border-radius:4px;font-size:11px;color:#1a2742;background:#f7f9fc;margin-bottom:4px;}
+.sb-search:focus{outline:none;border-color:#1E63A0;}
+.sb-search::placeholder{color:#a8b8cc;}
+
+/* Clear btn */
+#btn-limpar{width:calc(100% - 20px);margin:6px 10px 8px;padding:5px;border:1.5px solid #c5d3e3;border-radius:4px;background:#fff;font-size:10px;font-weight:700;color:#5a7190;cursor:pointer;text-transform:uppercase;letter-spacing:.5px;transition:all .12s;}
+#btn-limpar:hover{border-color:#d01b1e;color:#d01b1e;}
+
+/* CONTENT */
+#content{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;}
+.page{display:none;flex:1;flex-direction:column;overflow:hidden;min-height:0;}
+.page.active{display:flex;}
+
+/* Page scroll area */
+.page-inner{flex:1;overflow-y:auto;overflow-x:hidden;padding:12px 14px;}
+.page-inner::-webkit-scrollbar{width:4px;}
+.page-inner::-webkit-scrollbar-thumb{background:rgba(8,54,95,.15);}
+
+/* PAINEL GERAL — eixo filter */
+#pg-eixos{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px;}
+.eixo-chip{padding:4px 12px;border-radius:14px;font-size:11px;font-weight:700;cursor:pointer;border:1.5px solid #c5d3e3;background:#fff;color:#3d5470;transition:all .12s;}
+.eixo-chip:hover{border-color:#1E63A0;color:#1E63A0;}
+.eixo-chip.active{background:#1E63A0;border-color:#1E63A0;color:#fff;}
+
+/* PAINEL GERAL — 5 donuts row */
+.donuts-row{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;}
+.donut-card{flex:1;min-width:130px;background:#fff;border-radius:8px;border:1px solid #d6e1ee;padding:10px 8px;display:flex;flex-direction:column;align-items:center;gap:4px;}
+.donut-card-title{font-size:10px;font-weight:800;color:#08365f;text-transform:uppercase;letter-spacing:.5px;text-align:center;}
+.donut-card-num{font-size:11px;font-weight:700;color:#5a7190;}
+.donut-card .donut-rel{position:relative;width:90px;height:90px;}
+.donut-card .donut-rel canvas{position:absolute;top:0;left:0;}
+.donut-card .dc-ctr{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:18px;font-weight:800;color:#08365f;pointer-events:none;text-align:center;line-height:1;}
+
+/* TABLE */
+.tbl-wrap{flex:1;overflow:auto;border-radius:6px;border:1px solid #d6e1ee;}
+.tbl-wrap::-webkit-scrollbar{width:4px;height:4px;}
+.tbl-wrap::-webkit-scrollbar-thumb{background:rgba(8,54,95,.15);}
+table{width:100%;border-collapse:collapse;font-size:12px;}
+thead tr{background:#08365f;position:sticky;top:0;z-index:2;}
+thead th{padding:8px 10px;text-align:left;font-size:10px;font-weight:800;color:#fff;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;}
+tbody tr{border-bottom:1px solid #e8edf3;}
+tbody tr:hover{background:#f3f7fc;}
+tbody td{padding:7px 10px;color:#1a2742;vertical-align:top;line-height:1.3;}
+.td-status{display:inline-flex;align-items:center;gap:5px;white-space:nowrap;}
+.td-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.td-link{color:#1E63A0;text-decoration:none;font-size:10px;}
+.td-link:hover{text-decoration:underline;}
+.td-trunc{max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+/* Page section headers */
+.sec-hdr{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+.sec-hdr h3{font-size:13px;font-weight:800;color:#08365f;text-transform:uppercase;letter-spacing:.5px;}
+.sec-badge{background:#1E63A0;color:#fff;border-radius:10px;padding:1px 8px;font-size:10px;font-weight:700;}
+
+/* Search row (Metas/Ações/Pontos) */
+.search-row{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+.search-input{flex:1;padding:7px 10px;border:1.5px solid #c5d3e3;border-radius:4px;font-size:12px;color:#1a2742;background:#fff;}
+.search-input:focus{outline:none;border-color:#1E63A0;}
+.search-input::placeholder{color:#a8b8cc;}
+
+/* Metas/Ações/Pontos layout: table fills bottom */
+.detail-layout{display:flex;flex-direction:column;height:100%;gap:0;}
+
+/* FOOTER */
+#footer{background:#08365f;flex-shrink:0;height:24px;display:flex;align-items:center;padding:0 14px;gap:16px;}
+.ft-text{font-size:10px;color:rgba(255,255,255,.5);}
+.ft-legend{display:flex;align-items:center;gap:12px;flex:1;justify-content:center;}
+.ft-item{display:flex;align-items:center;gap:4px;font-size:10px;color:rgba(255,255,255,.75);}
+.ft-dot{width:9px;height:9px;border-radius:50%;}
+
+/* LOADING */
+#loading{position:fixed;inset:0;background:#08365f;z-index:500;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;}
+.spin{width:36px;height:36px;border:3px solid rgba(255,255,255,.15);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;}
+@keyframes sp{to{transform:rotate(360deg);}}
+#loading p{color:rgba(255,255,255,.5);font-size:12px;}
+
+/* Trim chips (Pts pages) */
+.filter-row{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px;}
+</style>
+</head>
+<body>
+
+<div id="loading"><div class="spin"></div><p>Carregando...</p></div>
+
+<!-- HEADER -->
+<div id="header">
+  <img class="logo-aracaju" src="/static/logo_aracaju.png" alt="Prefeitura de Aracaju" onerror="this.style.display='none'">
+  <div class="hdr-title">
+    <h1>Painel Estratégico Geral</h1>
+    <h2>Governo do Estado de Sergipe</h2>
+  </div>
+  <img class="logo-sergipe" src="/static/logo_sergipe.png" alt="Sergipe" onerror="this.style.display='none'">
+</div>
+
+<!-- TABS -->
+<div id="tabs">
+  <button class="tab-btn active" onclick="switchPage('painel-geral')">&#9679; Painel Geral</button>
+  <button class="tab-btn" onclick="switchPage('metas')">Metas</button>
+  <button class="tab-btn" onclick="switchPage('acoes')">Ações</button>
+  <button class="tab-btn" onclick="switchPage('pontos-controle')">Pontos de Controle</button>
+  <button class="tab-btn" onclick="switchPage('pontos-balanco')">Pontos de Balanço</button>
+</div>
+
+<!-- BODY -->
+<div id="body">
+
+  <!-- SIDEBAR -->
+  <div id="sidebar">
+
+    <!-- Donut sidebar -->
+    <div class="sb-section">
+      <div class="sb-label" id="sb-donut-label">Distribuição</div>
+      <div class="donut-wrap">
+        <canvas id="sb-donut" width="120" height="120"></canvas>
+        <div class="donut-center">
+          <div class="donut-num" id="sb-total">—</div>
+          <div class="donut-sub" id="sb-total-label">total</div>
+        </div>
+      </div>
+      <div class="legend" id="sb-legend"></div>
+    </div>
+
+    <!-- Unidade filter -->
+    <div class="sb-section">
+      <div class="sb-label">Unidade <span id="sb-unidade-sel"></span></div>
+      <div class="chips" id="chips-unidade"></div>
+    </div>
+
+    <!-- Trimestre/Mês (Pontos pages) -->
+    <div class="sb-section" id="sb-trim-section" style="display:none">
+      <div class="sb-label">Trimestre</div>
+      <div class="chips" id="chips-trimestre"></div>
+    </div>
+    <div class="sb-section" id="sb-mes-section" style="display:none">
+      <div class="sb-label">Mês</div>
+      <div class="chips" id="chips-mes"></div>
+    </div>
+
+    <button id="btn-limpar" onclick="limparFiltros()">✕ Limpar Filtros</button>
+  </div>
+
+  <!-- CONTENT -->
+  <div id="content">
+
+    <!-- PAINEL GERAL -->
+    <div class="page active" id="page-painel-geral">
+      <div class="page-inner">
+        <!-- Eixo filter -->
+        <div class="sb-section" style="padding:0 0 8px 0;">
+          <div class="sb-label" style="margin-bottom:6px;">Eixo Estratégico</div>
+          <div id="pg-eixos" class="chips"></div>
+        </div>
+
+        <!-- 5 donuts -->
+        <div class="donuts-row" id="donuts-row">
+          <div class="donut-card">
+            <div class="donut-card-title">Projetos</div>
+            <div class="donut-rel"><canvas id="dc-proj" width="90" height="90"></canvas><div class="dc-ctr" id="dc-proj-n">—</div></div>
+            <div class="donut-card-num" id="dc-proj-total"></div>
+          </div>
+          <div class="donut-card">
+            <div class="donut-card-title">Metas</div>
+            <div class="donut-rel"><canvas id="dc-meta" width="90" height="90"></canvas><div class="dc-ctr" id="dc-meta-n">—</div></div>
+            <div class="donut-card-num" id="dc-meta-total"></div>
+          </div>
+          <div class="donut-card">
+            <div class="donut-card-title">Ações</div>
+            <div class="donut-rel"><canvas id="dc-acao" width="90" height="90"></canvas><div class="dc-ctr" id="dc-acao-n">—</div></div>
+            <div class="donut-card-num" id="dc-acao-total"></div>
+          </div>
+          <div class="donut-card">
+            <div class="donut-card-title">Pts. de Controle</div>
+            <div class="donut-rel"><canvas id="dc-ctrl" width="90" height="90"></canvas><div class="dc-ctr" id="dc-ctrl-n">—</div></div>
+            <div class="donut-card-num" id="dc-ctrl-total"></div>
+          </div>
+          <div class="donut-card">
+            <div class="donut-card-title">Pts. de Balanço</div>
+            <div class="donut-rel"><canvas id="dc-bal" width="90" height="90"></canvas><div class="dc-ctr" id="dc-bal-n">—</div></div>
+            <div class="donut-card-num" id="dc-bal-total"></div>
+          </div>
+        </div>
+
+        <!-- Projetos table -->
+        <div class="sec-hdr">
+          <h3>Projetos Estratégicos</h3>
+          <span class="sec-badge" id="pg-count">—</span>
+        </div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr>
+              <th>Projeto</th>
+              <th>Responsável</th>
+              <th>Status</th>
+              <th>Unidade</th>
+              <th>Eixo</th>
+            </tr></thead>
+            <tbody id="pg-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- METAS -->
+    <div class="page" id="page-metas">
+      <div class="page-inner" style="display:flex;flex-direction:column;height:100%;gap:0;padding-bottom:0;">
+        <div class="search-row">
+          <input class="search-input" type="text" id="search-metas" placeholder="Buscar meta..." oninput="debounce(loadMetas,400)()">
+          <span class="sec-badge" id="metas-count">—</span>
+        </div>
+        <div class="tbl-wrap" style="flex:1;min-height:0;margin-bottom:12px;">
+          <table>
+            <thead><tr>
+              <th>Meta</th>
+              <th>Responsável</th>
+              <th>Status</th>
+              <th>Unidade</th>
+              <th>Término Previsto</th>
+            </tr></thead>
+            <tbody id="metas-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- AÇÕES -->
+    <div class="page" id="page-acoes">
+      <div class="page-inner" style="display:flex;flex-direction:column;height:100%;gap:0;padding-bottom:0;">
+        <div class="search-row">
+          <input class="search-input" type="text" id="search-acoes" placeholder="Buscar ação..." oninput="debounce(loadAcoes,400)()">
+          <span class="sec-badge" id="acoes-count">—</span>
+        </div>
+        <div class="tbl-wrap" style="flex:1;min-height:0;margin-bottom:12px;">
+          <table>
+            <thead><tr>
+              <th>Ação</th>
+              <th>Responsável</th>
+              <th>Término Previsto</th>
+              <th>Status</th>
+              <th>Unidade</th>
+            </tr></thead>
+            <tbody id="acoes-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- PONTOS DE CONTROLE -->
+    <div class="page" id="page-pontos-controle">
+      <div class="page-inner" style="display:flex;flex-direction:column;height:100%;gap:0;padding-bottom:0;">
+        <div class="search-row">
+          <input class="search-input" type="text" id="search-ctrl" placeholder="Buscar ponto de controle..." oninput="debounce(loadCtrl,400)()">
+          <span class="sec-badge" id="ctrl-count">—</span>
+        </div>
+        <div class="tbl-wrap" style="flex:1;min-height:0;margin-bottom:12px;">
+          <table>
+            <thead><tr>
+              <th>Unidade</th>
+              <th style="min-width:240px">Encaminhamento</th>
+              <th>Responsável</th>
+              <th style="min-width:160px">Último Comentário</th>
+              <th>Término Previsto</th>
+              <th>Status</th>
+              <th>Entidades</th>
+              <th>Link</th>
+            </tr></thead>
+            <tbody id="ctrl-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- PONTOS DE BALANÇO -->
+    <div class="page" id="page-pontos-balanco">
+      <div class="page-inner" style="display:flex;flex-direction:column;height:100%;gap:0;padding-bottom:0;">
+        <div class="search-row">
+          <input class="search-input" type="text" id="search-bal" placeholder="Buscar ponto de balanço..." oninput="debounce(loadBal,400)()">
+          <span class="sec-badge" id="bal-count">—</span>
+        </div>
+        <div class="tbl-wrap" style="flex:1;min-height:0;margin-bottom:12px;">
+          <table>
+            <thead><tr>
+              <th>Unidade</th>
+              <th style="min-width:240px">Encaminhamento</th>
+              <th>Responsável</th>
+              <th style="min-width:160px">Último Comentário</th>
+              <th>Término Previsto</th>
+              <th>Status</th>
+              <th>Entidades</th>
+              <th>Link</th>
+            </tr></thead>
+            <tbody id="bal-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /body -->
+
+<!-- FOOTER -->
+<div id="footer">
+  <span class="ft-text">PAINEL ESTRATÉGICO GERAL — SERGIPE</span>
+  <div class="ft-legend">
+    <div class="ft-item"><div class="ft-dot" style="background:#1EAA59"></div>Concluído</div>
+    <div class="ft-item"><div class="ft-dot" style="background:#2292B7"></div>Em Andamento</div>
+    <div class="ft-item"><div class="ft-dot" style="background:#E8B200"></div>Em Atraso</div>
+    <div class="ft-item"><div class="ft-dot" style="background:#d01b1e"></div>Crítico/Paralisado</div>
+    <div class="ft-item"><div class="ft-dot" style="background:#888"></div>Não Iniciado</div>
+  </div>
+  <span class="ft-text" id="ft-date">—</span>
+</div>
+
+<script>
+// ── STATE ───────────────────────────────────────────
+let curPage = 'painel-geral';
+let filtros = { unidades: [], eixos: [], trimestres: [], meses: [] };
+let selUnidade = null, selEixo = null, selTri = null, selMes = null;
+let charts = {};
+let debounceTimers = {};
+
+// ── STATUS COLORS ───────────────────────────────────
+function statusColor(s) {
+  const k = (s || '').toLowerCase();
+  if (k.includes('conclu')) return '#1EAA59';
+  if (k.includes('andamento')) return '#2292B7';
+  if (k.includes('atraso') || k.includes('atrasado')) return '#E8B200';
+  if (k.includes('crít') || k.includes('paralisa') || k.includes('impedido')) return '#d01b1e';
+  if (k.includes('nã') || k.includes('pendente')) return '#888888';
+  if (k.includes('cancelado')) return '#666666';
+  // fallback: cycle through palette
+  const palette = ['#2292B7','#1EAA59','#E8B200','#d01b1e','#9b59b6','#e67e22','#1abc9c'];
+  let h = 0; for (let i=0; i<k.length; i++) h = (h*31 + k.charCodeAt(i)) & 0xffff;
+  return palette[h % palette.length];
+}
+
+function fmtDate(v) {
+  if (!v) return '—';
+  const s = String(v);
+  if (s.includes('T') || s.includes('-')) {
+    const d = new Date(s);
+    if (!isNaN(d)) return d.toLocaleDateString('pt-BR');
+  }
+  return s;
+}
+
+// ── CHARTS ──────────────────────────────────────────
+function renderDonut(id, data, opts = {}) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const ctx = el.getContext('2d');
+  if (charts[id]) { charts[id].destroy(); delete charts[id]; }
+  if (!data || !data.length) {
+    ctx.clearRect(0, 0, el.width, el.height);
+    return;
+  }
+  const colors = data.map(d => statusColor(d.status));
+  const vals = data.map(d => d.qtd);
+  charts[id] = new Chart(ctx, {
+    type: 'doughnut',
+    data: { datasets: [{ data: vals, backgroundColor: colors, borderWidth: 1, borderColor: '#fff' }] },
+    options: {
+      responsive: false,
+      cutout: opts.cutout || '68%',
+      plugins: { legend: { display: false }, tooltip: {
+        callbacks: { label: ctx => ` ${ctx.label || data[ctx.dataIndex]?.status}: ${ctx.raw}` }
+      }},
+      animation: { duration: 350 }
+    }
+  });
+}
+
+// ── SIDEBAR DONUT ────────────────────────────────────
+function renderSidebarDonut(data, label, total) {
+  renderDonut('sb-donut', data, { cutout: '70%' });
+  document.getElementById('sb-total').textContent = total;
+  document.getElementById('sb-donut-label').textContent = label;
+  const leg = document.getElementById('sb-legend');
+  leg.innerHTML = data.slice(0, 8).map(d => `
+    <div class="leg-item">
+      <div class="leg-dot" style="background:${statusColor(d.status)}"></div>
+      <span class="leg-name">${d.status || '—'}</span>
+      <span class="leg-qty">${d.qtd}</span>
+    </div>`).join('');
+}
+
+// ── CHIPS ────────────────────────────────────────────
+function buildChips(containerId, items, selected, onSelect) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  el.innerHTML = items.map(v => `
+    <span class="chip ${v === selected ? 'active' : ''}" onclick="(${onSelect.toString()})('${v.replace(/'/g,"\\'")}')">
+      ${v}
+    </span>`).join('');
+}
+
+function buildEixoChips() {
+  const el = document.getElementById('pg-eixos');
+  if (!el) return;
+  const labels = {
+    'Eixo 1 - Trabalho e Desenvolvimento Econômico': 'Eixo 1',
+    'Eixo 2 - Desenvolvimento Humano e Social': 'Eixo 2',
+    'Eixo 3 - Infraestrutura e Sustentabilidade': 'Eixo 3',
+    'Eixo 4 - Gestão, Governança e Inovação': 'Eixo 4',
+    'Projeto Estratégico': 'Proj. Estratégico',
+  };
+  const eixos = filtros.eixos.length ? filtros.eixos : Object.keys(labels);
+  el.innerHTML = eixos.map(e => `
+    <span class="eixo-chip ${e === selEixo ? 'active' : ''}"
+      title="${e}"
+      onclick="selEixoFn('${e.replace(/'/g,"\\'")}')">
+      ${labels[e] || e}
+    </span>`).join('');
+}
+
+function selEixoFn(v) {
+  selEixo = (selEixo === v) ? null : v;
+  buildEixoChips();
+  loadPainelGeral();
+}
+
+function selUnidadeFn(v) {
+  selUnidade = (selUnidade === v) ? null : v;
+  buildChips('chips-unidade', filtros.unidades, selUnidade, selUnidadeFn);
+  const sel = document.getElementById('sb-unidade-sel');
+  if (sel) sel.textContent = selUnidade ? `(${selUnidade})` : '';
+  reloadCurrentPage();
+}
+
+function selTriFn(v) {
+  const [tri, ano] = v.split('/');
+  const key = `${tri}/${ano}`;
+  const prev = selTri;
+  selTri = (prev === tri ? null : tri);
+  buildTrimChips();
+  reloadCurrentPage();
+}
+
+function selMesFn(v) {
+  const prev = selMes;
+  selMes = (prev === v ? null : v);
+  buildMesChips();
+  reloadCurrentPage();
+}
+
+function buildTrimChips() {
+  const el = document.getElementById('chips-trimestre');
+  if (!el) return;
+  const items = [...new Set(filtros.trimestres.map(t => `${t.trimestre}º Tri`))];
+  el.innerHTML = items.map(v => {
+    const tri = v.replace('º Tri','');
+    return `<span class="chip ${selTri == tri ? 'active' : ''}" onclick="selTri=(selTri==${tri}?null:${tri});buildTrimChips();reloadCurrentPage();">${v}</span>`;
+  }).join('');
+}
+
+function buildMesChips() {
+  const el = document.getElementById('chips-mes');
+  if (!el) return;
+  const MESES = ['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const items = [...new Set(filtros.meses.map(m => `${m.mes}`))];
+  el.innerHTML = items.map(v => `
+    <span class="chip ${selMes == v ? 'active' : ''}"
+      onclick="selMes=(selMes=='${v}'?null:'${v}');buildMesChips();reloadCurrentPage();">
+      ${MESES[+v]||v}
+    </span>`).join('');
+}
+
+// ── NAVIGATION ───────────────────────────────────────
+function switchPage(id) {
+  curPage = id;
+  document.querySelectorAll('.tab-btn').forEach((b, i) => {
+    const pages = ['painel-geral','metas','acoes','pontos-controle','pontos-balanco'];
+    b.classList.toggle('active', pages[i] === id);
+  });
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  const pg = document.getElementById(`page-${id}`);
+  if (pg) pg.classList.add('active');
+
+  const isPontos = id === 'pontos-controle' || id === 'pontos-balanco';
+  document.getElementById('sb-trim-section').style.display = isPontos ? '' : 'none';
+  document.getElementById('sb-mes-section').style.display = isPontos ? '' : 'none';
+
+  reloadCurrentPage();
+}
+
+function reloadCurrentPage() {
+  if (curPage === 'painel-geral') loadPainelGeral();
+  else if (curPage === 'metas') loadMetas();
+  else if (curPage === 'acoes') loadAcoes();
+  else if (curPage === 'pontos-controle') loadCtrl();
+  else if (curPage === 'pontos-balanco') loadBal();
+}
+
+function limparFiltros() {
+  selUnidade = null; selEixo = null; selTri = null; selMes = null;
+  buildChips('chips-unidade', filtros.unidades, null, selUnidadeFn);
+  buildEixoChips();
+  buildTrimChips();
+  buildMesChips();
+  document.getElementById('sb-unidade-sel').textContent = '';
+  document.querySelectorAll('.search-input').forEach(i => i.value = '');
+  reloadCurrentPage();
+}
+
+// ── LOADERS ──────────────────────────────────────────
+async function loadPainelGeral() {
+  const qs = new URLSearchParams();
+  if (selUnidade) qs.set('unidade', selUnidade);
+  if (selEixo) qs.set('eixo', selEixo);
+  const d = await fetch('/api/painel-geral?' + qs).then(r => r.json()).catch(() => null);
+  if (!d) return;
+
+  const tot = d.totais;
+
+  // 5 mini donuts
+  renderDonut('dc-proj', d.projetos_donut, { cutout: '60%' });
+  renderDonut('dc-meta', d.metas_donut, { cutout: '60%' });
+  renderDonut('dc-acao', d.acoes_donut, { cutout: '60%' });
+  renderDonut('dc-ctrl', d.ctrl_donut, { cutout: '60%' });
+  renderDonut('dc-bal',  d.balanco_donut, { cutout: '60%' });
+
+  document.getElementById('dc-proj-n').textContent = tot.projetos;
+  document.getElementById('dc-meta-n').textContent = tot.metas;
+  document.getElementById('dc-acao-n').textContent = tot.acoes;
+  document.getElementById('dc-ctrl-n').textContent = tot.ctrl;
+  document.getElementById('dc-bal-n').textContent  = tot.balanco;
+
+  // sidebar donut = projetos
+  renderSidebarDonut(d.projetos_donut, 'Projetos', tot.projetos);
+  document.getElementById('sb-total-label').textContent = 'projetos';
+
+  // table
+  document.getElementById('pg-count').textContent = d.tabela.length;
+  document.getElementById('pg-tbody').innerHTML = d.tabela.map(r => `
+    <tr>
+      <td class="td-trunc">${r.projeto || '—'}</td>
+      <td>${r.responsavel || '—'}</td>
+      <td><span class="td-status"><span class="td-dot" style="background:${statusColor(r.status)}"></span>${r.status || '—'}</span></td>
+      <td>${r.unidade || '—'}</td>
+      <td style="font-size:10px;color:#5a7190">${shortEixo(r.eixo)}</td>
+    </tr>`).join('') || '<tr><td colspan="5" style="text-align:center;color:#8a9bb5;padding:16px">Sem dados</td></tr>';
+}
+
+async function loadMetas() {
+  const qs = new URLSearchParams();
+  if (selUnidade) qs.set('unidade', selUnidade);
+  const s = document.getElementById('search-metas')?.value.trim();
+  if (s) qs.set('search', s);
+  const d = await fetch('/api/metas?' + qs).then(r => r.json()).catch(() => null);
+  if (!d) return;
+  renderSidebarDonut(d.donut, 'Metas', d.total);
+  document.getElementById('sb-total-label').textContent = 'metas';
+  document.getElementById('metas-count').textContent = d.tabela.length;
+  document.getElementById('metas-tbody').innerHTML = d.tabela.map(r => `
+    <tr>
+      <td class="td-trunc">${r.meta || '—'}</td>
+      <td>${r.responsavel || '—'}</td>
+      <td><span class="td-status"><span class="td-dot" style="background:${statusColor(r.status)}"></span>${r.status || '—'}</span></td>
+      <td>${r.unidade || '—'}</td>
+      <td>${fmtDate(r.termino_previsto)}</td>
+    </tr>`).join('') || '<tr><td colspan="5" style="text-align:center;color:#8a9bb5;padding:16px">Sem dados</td></tr>';
+}
+
+async function loadAcoes() {
+  const qs = new URLSearchParams();
+  if (selUnidade) qs.set('unidade', selUnidade);
+  const s = document.getElementById('search-acoes')?.value.trim();
+  if (s) qs.set('search', s);
+  const d = await fetch('/api/acoes?' + qs).then(r => r.json()).catch(() => null);
+  if (!d) return;
+  renderSidebarDonut(d.donut, 'Ações', d.total);
+  document.getElementById('sb-total-label').textContent = 'ações';
+  document.getElementById('acoes-count').textContent = d.tabela.length;
+  document.getElementById('acoes-tbody').innerHTML = d.tabela.map(r => `
+    <tr>
+      <td class="td-trunc">${r.acao || '—'}</td>
+      <td>${r.responsavel || '—'}</td>
+      <td>${fmtDate(r.termino_previsto)}</td>
+      <td><span class="td-status"><span class="td-dot" style="background:${statusColor(r.status)}"></span>${r.status || '—'}</span></td>
+      <td>${r.unidade || '—'}</td>
+    </tr>`).join('') || '<tr><td colspan="5" style="text-align:center;color:#8a9bb5;padding:16px">Sem dados</td></tr>';
+}
+
+async function loadCtrl() {
+  const qs = new URLSearchParams();
+  qs.set('tipo', 'DEMAND');
+  if (selUnidade) qs.set('unidade', selUnidade);
+  if (selTri) qs.set('trimestre', selTri);
+  if (selMes) qs.set('mes', selMes);
+  const s = document.getElementById('search-ctrl')?.value.trim();
+  if (s) qs.set('search', s);
+  const d = await fetch('/api/pontos?' + qs).then(r => r.json()).catch(() => null);
+  if (!d) return;
+  renderSidebarDonut(d.donut, 'Pts. Controle', d.total);
+  document.getElementById('sb-total-label').textContent = 'registros';
+  document.getElementById('ctrl-count').textContent = d.tabela.length;
+  document.getElementById('ctrl-tbody').innerHTML = renderPontosRows(d.tabela);
+}
+
+async function loadBal() {
+  const qs = new URLSearchParams();
+  qs.set('tipo', 'INCIDENT');
+  if (selUnidade) qs.set('unidade', selUnidade);
+  if (selTri) qs.set('trimestre', selTri);
+  if (selMes) qs.set('mes', selMes);
+  const s = document.getElementById('search-bal')?.value.trim();
+  if (s) qs.set('search', s);
+  const d = await fetch('/api/pontos?' + qs).then(r => r.json()).catch(() => null);
+  if (!d) return;
+  renderSidebarDonut(d.donut, 'Pts. Balanço', d.total);
+  document.getElementById('sb-total-label').textContent = 'registros';
+  document.getElementById('bal-count').textContent = d.tabela.length;
+  document.getElementById('bal-tbody').innerHTML = renderPontosRows(d.tabela);
+}
+
+function renderPontosRows(tabela) {
+  if (!tabela.length) return '<tr><td colspan="8" style="text-align:center;color:#8a9bb5;padding:16px">Sem dados</td></tr>';
+  return tabela.map(r => `
+    <tr>
+      <td>${r.unidade || '—'}</td>
+      <td class="td-trunc" style="max-width:240px">${r.encaminhamento || '—'}</td>
+      <td>${r.responsavel || '—'}</td>
+      <td class="td-trunc" style="max-width:160px;color:#5a7190">${r.ultimo_comentario || '—'}</td>
+      <td>${fmtDate(r.termino_previsto)}</td>
+      <td><span class="td-status"><span class="td-dot" style="background:${statusColor(r.status)}"></span>${r.status || '—'}</span></td>
+      <td style="font-size:10px">${r.entidades || '—'}</td>
+      <td>${r.url ? `<a class="td-link" href="${r.url}" target="_blank">Abrir ↗</a>` : '—'}</td>
+    </tr>`).join('');
+}
+
+// ── UTILS ────────────────────────────────────────────
+function shortEixo(tag) {
+  if (!tag) return '—';
+  if (tag.startsWith('Eixo 1')) return 'Eixo 1';
+  if (tag.startsWith('Eixo 2')) return 'Eixo 2';
+  if (tag.startsWith('Eixo 3')) return 'Eixo 3';
+  if (tag.startsWith('Eixo 4')) return 'Eixo 4';
+  if (tag === 'Projeto Estratégico') return 'Proj. Estratégico';
+  return tag;
+}
+
+function debounce(fn, ms) {
+  return function() {
+    clearTimeout(debounceTimers[fn.name]);
+    debounceTimers[fn.name] = setTimeout(fn, ms);
+  };
+}
+
+// ── INIT ─────────────────────────────────────────────
+async function init() {
+  document.getElementById('ft-date').textContent = new Date().toLocaleDateString('pt-BR');
+
+  filtros = await fetch('/api/filtros').then(r => r.json()).catch(() => ({ unidades: [], eixos: [], trimestres: [], meses: [] }));
+
+  buildChips('chips-unidade', filtros.unidades, null, selUnidadeFn);
+  buildEixoChips();
+  buildTrimChips();
+  buildMesChips();
+
+  await loadPainelGeral();
+  document.getElementById('loading').style.display = 'none';
+}
+
+init();
+</script>
+</body>
+</html>

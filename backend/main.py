@@ -1,0 +1,395 @@
+from fastapi import FastAPI, Query
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+import psycopg2
+import psycopg2.extras
+import psycopg2.pool
+import os
+import threading
+import time
+from typing import Optional
+
+app = FastAPI()
+
+DB_URL = os.environ["DB_URL"]
+S = os.environ.get("DB_SCHEMA", "public")
+
+_pool = psycopg2.pool.ThreadedConnectionPool(2, 10, DB_URL)
+_cache: dict = {}
+_cache_lock = threading.Lock()
+CACHE_TTL = 300
+
+EIXOS = [
+    "Eixo 1 - Trabalho e Desenvolvimento Econômico",
+    "Eixo 2 - Desenvolvimento Humano e Social",
+    "Eixo 3 - Infraestrutura e Sustentabilidade",
+    "Eixo 4 - Gestão, Governança e Inovação",
+    "Projeto Estratégico",
+]
+
+
+def get_conn():
+    return _pool.getconn()
+
+
+def release(c):
+    _pool.putconn(c)
+
+
+def rows(cur, sql, params=()):
+    cur.execute(sql, params)
+    return [dict(r) for r in cur.fetchall()]
+
+
+def cache_get(key):
+    with _cache_lock:
+        entry = _cache.get(key)
+        if entry and time.time() - entry["ts"] < CACHE_TTL:
+            return entry["data"]
+        return None
+
+
+def cache_set(key, data):
+    with _cache_lock:
+        _cache[key] = {"data": data, "ts": time.time()}
+
+
+@app.get("/")
+def index():
+    return FileResponse("frontend/index.html")
+
+
+@app.get("/api/health")
+def health():
+    return {"status": "ok"}
+
+
+@app.get("/api/filtros")
+def filtros():
+    key = "filtros"
+    cached = cache_get(key)
+    if cached:
+        return cached
+
+    conn = get_conn()
+    try:
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        unidades = rows(cur, f"""
+            SELECT DISTINCT acronym
+            FROM {S}.tbl_agencys
+            WHERE acronym IS NOT NULL
+            ORDER BY acronym
+        """)
+
+        eixos_db = rows(cur, f"""
+            SELECT DISTINCT tag
+            FROM {S}.tbl_acaoprioritaria
+            WHERE tag = ANY(%s)
+            ORDER BY tag
+        """, (EIXOS,))
+
+        trimestres = rows(cur, f"""
+            SELECT DISTINCT
+                EXTRACT(QUARTER FROM termino_previsto)::int AS trimestre,
+                EXTRACT(YEAR  FROM termino_previsto)::int AS ano
+            FROM {S}.tbl_encaminhamentos
+            WHERE termino_previsto IS NOT NULL
+            ORDER BY ano, trimestre
+        """)
+
+        meses = rows(cur, f"""
+            SELECT DISTINCT
+                EXTRACT(MONTH FROM termino_previsto)::int AS mes,
+                EXTRACT(YEAR  FROM termino_previsto)::int AS ano,
+                TO_CHAR(DATE_TRUNC('month', termino_previsto), 'Mon/YYYY') AS label
+            FROM {S}.tbl_encaminhamentos
+            WHERE termino_previsto IS NOT NULL
+            ORDER BY ano, mes
+        """)
+
+        result = {
+            "unidades": [r["acronym"] for r in unidades],
+            "eixos": [r["tag"] for r in eixos_db] or EIXOS,
+            "trimestres": trimestres,
+            "meses": meses,
+        }
+        cache_set(key, result)
+        return result
+    finally:
+        release(conn)
+
+
+@app.get("/api/painel-geral")
+def painel_geral(
+    unidade: Optional[str] = Query(None),
+    eixo: Optional[str] = Query(None),
+):
+    key = f"painel_geral|{unidade}|{eixo}"
+    cached = cache_get(key)
+    if cached:
+        return cached
+
+    tags = [eixo] if eixo else EIXOS
+
+    conn = get_conn()
+    try:
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        ua = ["AND a.acronym = %s", [unidade]] if unidade else ["", []]
+        up = ["AND p.acronym = %s", [unidade]] if unidade else ["", []]
+        ut = ["AND t.acronym = %s", [unidade]] if unidade else ["", []]
+        ue = ["AND e.sigla = %s",   [unidade]] if unidade else ["", []]
+
+        proj_donut = rows(cur, f"""
+            SELECT a.status, COUNT(DISTINCT a.uuid_) AS qtd
+            FROM {S}.tbl_acaoprioritaria a
+            JOIN {S}.tbl_planooperativo p ON p.fatheruuid = a.uuid_ AND p.ativo = true
+            WHERE a.tag = ANY(%s) {ua[0]}
+            GROUP BY a.status ORDER BY qtd DESC
+        """, [tags] + ua[1])
+
+        metas_donut = rows(cur, f"""
+            SELECT p.status, COUNT(*) AS qtd
+            FROM {S}.tbl_planooperativo p
+            JOIN {S}.tbl_acaoprioritaria a ON a.uuid_ = p.fatheruuid
+            WHERE p.ativo = true AND a.tag = ANY(%s) {up[0]}
+            GROUP BY p.status ORDER BY qtd DESC
+        """, [tags] + up[1])
+
+        acoes_donut = rows(cur, f"""
+            SELECT t.status, COUNT(*) AS qtd
+            FROM {S}.tbl_tarefa t
+            JOIN {S}.tbl_planooperativo p ON p.uuid_ = t.fatheruuid AND p.ativo = true
+            JOIN {S}.tbl_acaoprioritaria a ON a.uuid_ = p.fatheruuid
+            WHERE a.tag = ANY(%s) {ut[0]}
+            GROUP BY t.status ORDER BY qtd DESC
+        """, [tags] + ut[1])
+
+        ctrl_donut = rows(cur, f"""
+            SELECT e.status, COUNT(*) AS qtd
+            FROM {S}.tbl_encaminhamentos e
+            JOIN {S}.tbl_planooperativo p ON p.uuid_ = e.uuid_ AND p.ativo = true
+            JOIN {S}.tbl_acaoprioritaria a ON a.uuid_ = p.fatheruuid
+            WHERE e.tipo_encaminhamento = 'DEMAND' AND a.tag = ANY(%s) {ue[0]}
+            GROUP BY e.status ORDER BY qtd DESC
+        """, [tags] + ue[1])
+
+        balanco_donut = rows(cur, f"""
+            SELECT e.status, COUNT(*) AS qtd
+            FROM {S}.tbl_encaminhamentos e
+            JOIN {S}.tbl_planooperativo p ON p.uuid_ = e.uuid_ AND p.ativo = true
+            JOIN {S}.tbl_acaoprioritaria a ON a.uuid_ = p.fatheruuid
+            WHERE e.tipo_encaminhamento = 'INCIDENT' AND a.tag = ANY(%s) {ue[0]}
+            GROUP BY e.status ORDER BY qtd DESC
+        """, [tags] + ue[1])
+
+        tabela = rows(cur, f"""
+            SELECT DISTINCT ON (a.uuid_)
+                a.entidade AS projeto,
+                a.responsavel,
+                a.status,
+                a.acronym AS unidade,
+                a.tag AS eixo
+            FROM {S}.tbl_acaoprioritaria a
+            JOIN {S}.tbl_planooperativo p ON p.fatheruuid = a.uuid_ AND p.ativo = true
+            WHERE a.tag = ANY(%s) {ua[0]}
+            ORDER BY a.uuid_, a.entidade
+        """, [tags] + ua[1])
+
+        def total(d): return sum(r["qtd"] for r in d)
+
+        result = {
+            "projetos_donut": proj_donut,
+            "metas_donut": metas_donut,
+            "acoes_donut": acoes_donut,
+            "ctrl_donut": ctrl_donut,
+            "balanco_donut": balanco_donut,
+            "totais": {
+                "projetos": total(proj_donut),
+                "metas": total(metas_donut),
+                "acoes": total(acoes_donut),
+                "ctrl": total(ctrl_donut),
+                "balanco": total(balanco_donut),
+            },
+            "tabela": tabela,
+        }
+        cache_set(key, result)
+        return result
+    finally:
+        release(conn)
+
+
+@app.get("/api/metas")
+def metas(
+    unidade: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
+):
+    key = f"metas|{unidade}|{search}"
+    cached = cache_get(key)
+    if cached:
+        return cached
+
+    conn = get_conn()
+    try:
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        w = ["p.ativo = true", "a.tag = ANY(%s)"]
+        params: list = [EIXOS]
+        if unidade:
+            w.append("p.acronym = %s")
+            params.append(unidade)
+        if search:
+            w.append("p.entidade ILIKE %s")
+            params.append(f"%{search}%")
+        where = "WHERE " + " AND ".join(w)
+
+        donut = rows(cur, f"""
+            SELECT p.status, COUNT(*) AS qtd
+            FROM {S}.tbl_planooperativo p
+            JOIN {S}.tbl_acaoprioritaria a ON a.uuid_ = p.fatheruuid
+            {where}
+            GROUP BY p.status ORDER BY qtd DESC
+        """, params)
+
+        tabela = rows(cur, f"""
+            SELECT
+                p.entidade AS meta,
+                p.responsavel,
+                p.status,
+                p.acronym AS unidade,
+                p.terminoprevisto AS termino_previsto
+            FROM {S}.tbl_planooperativo p
+            JOIN {S}.tbl_acaoprioritaria a ON a.uuid_ = p.fatheruuid
+            {where}
+            ORDER BY p.entidade
+        """, params)
+
+        result = {"donut": donut, "total": sum(r["qtd"] for r in donut), "tabela": tabela}
+        cache_set(key, result)
+        return result
+    finally:
+        release(conn)
+
+
+@app.get("/api/acoes")
+def acoes(
+    unidade: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
+):
+    key = f"acoes|{unidade}|{search}"
+    cached = cache_get(key)
+    if cached:
+        return cached
+
+    conn = get_conn()
+    try:
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        w = ["p.ativo = true", "a.tag = ANY(%s)"]
+        params: list = [EIXOS]
+        if unidade:
+            w.append("t.acronym = %s")
+            params.append(unidade)
+        if search:
+            w.append("t.entidade ILIKE %s")
+            params.append(f"%{search}%")
+        where = "WHERE " + " AND ".join(w)
+
+        donut = rows(cur, f"""
+            SELECT t.status, COUNT(*) AS qtd
+            FROM {S}.tbl_tarefa t
+            JOIN {S}.tbl_planooperativo p ON p.uuid_ = t.fatheruuid AND p.ativo = true
+            JOIN {S}.tbl_acaoprioritaria a ON a.uuid_ = p.fatheruuid
+            {where}
+            GROUP BY t.status ORDER BY qtd DESC
+        """, params)
+
+        tabela = rows(cur, f"""
+            SELECT
+                t.entidade AS acao,
+                t.responsavel,
+                t.terminoprevisto AS termino_previsto,
+                t.status,
+                t.acronym AS unidade
+            FROM {S}.tbl_tarefa t
+            JOIN {S}.tbl_planooperativo p ON p.uuid_ = t.fatheruuid AND p.ativo = true
+            JOIN {S}.tbl_acaoprioritaria a ON a.uuid_ = p.fatheruuid
+            {where}
+            ORDER BY t.entidade
+        """, params)
+
+        result = {"donut": donut, "total": sum(r["qtd"] for r in donut), "tabela": tabela}
+        cache_set(key, result)
+        return result
+    finally:
+        release(conn)
+
+
+@app.get("/api/pontos")
+def pontos(
+    tipo: str = Query("DEMAND"),
+    unidade: Optional[str] = Query(None),
+    trimestre: Optional[int] = Query(None),
+    mes: Optional[int] = Query(None),
+    search: Optional[str] = Query(None),
+):
+    key = f"pontos|{tipo}|{unidade}|{trimestre}|{mes}|{search}"
+    cached = cache_get(key)
+    if cached:
+        return cached
+
+    conn = get_conn()
+    try:
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        w = ["p.ativo = true", "a.tag = ANY(%s)", "e.tipo_encaminhamento = %s"]
+        params: list = [EIXOS, tipo]
+        if unidade:
+            w.append("e.sigla = %s")
+            params.append(unidade)
+        if trimestre:
+            w.append("EXTRACT(QUARTER FROM e.termino_previsto)::int = %s")
+            params.append(trimestre)
+        if mes:
+            w.append("EXTRACT(MONTH FROM e.termino_previsto)::int = %s")
+            params.append(mes)
+        if search:
+            w.append("e.encaminhamento ILIKE %s")
+            params.append(f"%{search}%")
+        where = "WHERE " + " AND ".join(w)
+
+        donut = rows(cur, f"""
+            SELECT e.status, COUNT(*) AS qtd
+            FROM {S}.tbl_encaminhamentos e
+            JOIN {S}.tbl_planooperativo p ON p.uuid_ = e.uuid_
+            JOIN {S}.tbl_acaoprioritaria a ON a.uuid_ = p.fatheruuid
+            {where}
+            GROUP BY e.status ORDER BY qtd DESC
+        """, params)
+
+        tabela = rows(cur, f"""
+            SELECT
+                e.sigla AS unidade,
+                e.encaminhamento,
+                e.responsavel,
+                e.ultimo_comentario,
+                e.termino_previsto,
+                e.status,
+                e.entidades,
+                e.url
+            FROM {S}.tbl_encaminhamentos e
+            JOIN {S}.tbl_planooperativo p ON p.uuid_ = e.uuid_
+            JOIN {S}.tbl_acaoprioritaria a ON a.uuid_ = p.fatheruuid
+            {where}
+            ORDER BY e.sigla, e.termino_previsto NULLS LAST
+        """, params)
+
+        result = {"donut": donut, "total": sum(r["qtd"] for r in donut), "tabela": tabela}
+        cache_set(key, result)
+        return result
+    finally:
+        release(conn)
+
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
