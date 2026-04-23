@@ -24,7 +24,7 @@ body{display:flex;flex-direction:column;background:#eef2f7;font-family:'Segoe UI
 #sidebar{width:275px;flex-shrink:0;background:#fff;border-right:1px solid #d6e1ee;display:flex;flex-direction:column;overflow:hidden;height:100%;}
 
 .sb-section{padding:8px 10px 6px;}
-.sb-label{font-size:10px;font-weight:800;color:#08365f;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;}
+.sb-label{font-size:13px;font-weight:800;color:#1a2742;margin-bottom:6px;}
 
 /* Eixo cards */
 #sb-eixos{padding:10px 8px 6px;display:flex;flex-direction:column;gap:6px;}
@@ -35,7 +35,7 @@ body{display:flex;flex-direction:column;background:#eef2f7;font-family:'Segoe UI
 .ec-text{flex:1;min-width:0;font-size:12.5px;font-weight:900;text-transform:uppercase;line-height:1.32;letter-spacing:.1px;}
 
 /* Sidebar donut (other pages) */
-.donut-wrap{position:relative;width:120px;height:120px;margin:0 auto 4px;}
+.donut-wrap{position:relative;width:220px;height:220px;margin:0 auto 4px;}
 .donut-wrap canvas{position:absolute;top:0;left:0;}
 .donut-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;}
 .donut-num{font-size:22px;font-weight:800;color:#08365f;line-height:1;}
@@ -257,7 +257,7 @@ tbody td{padding:7px 10px;color:#1a2742;vertical-align:top;line-height:1.3;}
     <div id="sb-donut-section" class="sb-section" style="display:none">
       <div class="sb-label" id="sb-donut-label">Distribuição</div>
       <div class="donut-wrap">
-        <canvas id="sb-donut" width="120" height="120"></canvas>
+        <canvas id="sb-donut" width="220" height="220"></canvas>
         <div class="donut-center">
           <div class="donut-num" id="sb-total">—</div>
           <div class="donut-sub" id="sb-total-label">total</div>
@@ -517,22 +517,26 @@ function renderDonut(id, data, opts = {}) {
   const colors = data.map(d => statusColor(d.status));
   const total = data.reduce((s,d) => s + d.qtd, 0);
 
+  const fontSize = opts.fontSize || 9.5;
   const dlConfig = opts.showLabels ? {
     anchor: 'end',
     align: 'end',
-    offset: 8,
+    offset: 6,
     clip: false,
-    font: { size: 9.5, weight: '600' },
+    font: { size: fontSize, weight: '600' },
     color: '#3d5470',
     formatter: (value) => {
       const pct = total > 0 ? (value / total * 100).toFixed(1).replace('.', ',') : '0';
-      return `${value} (${pct}%)`;
+      return opts.multiLine ? [`${value}`, `(${pct}%)`] : `${value} (${pct}%)`;
     },
     display: (ctx) => {
       const pct = total > 0 ? (ctx.dataset.data[ctx.dataIndex] / total * 100) : 0;
       return pct >= 2.5;
     }
   } : { display: false };
+
+  const defPad = { top: 24, bottom: 24, left: 56, right: 56 };
+  const pad = opts.labelPadding || defPad;
 
   charts[id] = new Chart(ctx, {
     type: 'doughnut',
@@ -542,7 +546,7 @@ function renderDonut(id, data, opts = {}) {
       responsive: true,
       maintainAspectRatio: false,
       cutout: opts.cutout || '68%',
-      layout: opts.showLabels ? { padding: { top: 24, bottom: 24, left: 56, right: 56 } } : {},
+      layout: opts.showLabels ? { padding: pad } : {},
       plugins: {
         legend: { display: false },
         tooltip: { callbacks: { label: c => ` ${data[c.dataIndex]?.status}: ${c.raw}` } },
@@ -561,7 +565,14 @@ function renderDonut(id, data, opts = {}) {
 
 // ── SIDEBAR DONUT (other pages) ───────────────────────
 function renderSidebarDonut(data, label, total, page) {
-  renderDonut('sb-donut', data, { cutout: '70%', onClickStatus: page ? s => clickStatus(page, s) : null });
+  renderDonut('sb-donut', data, {
+    cutout: '70%',
+    showLabels: true,
+    multiLine: true,
+    fontSize: 8,
+    labelPadding: { top: 55, bottom: 55, left: 55, right: 55 },
+    onClickStatus: page ? s => clickStatus(page, s) : null
+  });
   document.getElementById('sb-total').textContent = total;
   document.getElementById('sb-donut-label').textContent = label;
   const total2 = data.reduce((s, d) => s + d.qtd, 0);
