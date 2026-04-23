@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Painel Estratégico Geral — Sergipe</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 html,body{height:100%;overflow:hidden;}
@@ -35,16 +36,12 @@ body{display:flex;flex-direction:column;background:#eef2f7;font-family:'Segoe UI
 .sb-label{font-size:10px;font-weight:800;color:#08365f;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;}
 
 /* Eixo cards */
-#sb-eixos{padding:8px 8px 4px;display:flex;flex-direction:column;gap:5px;}
-.eixo-card{display:flex;align-items:center;gap:8px;padding:7px 9px;border-radius:6px;cursor:pointer;transition:opacity .15s, box-shadow .15s;min-height:62px;position:relative;}
-.eixo-card:not(.active){opacity:.72;}
-.eixo-card:hover{opacity:1;}
-.eixo-card.active{box-shadow:0 0 0 2.5px #fff,0 0 0 4px rgba(0,0,0,.3);}
-.eixo-card .ec-icon{width:36px;height:36px;object-fit:contain;flex-shrink:0;filter:brightness(0) invert(1);}
-.eixo-card.ec4 .ec-icon{filter:none;}
-.eixo-card .ec-text{flex:1;min-width:0;}
-.eixo-card .ec-badge{font-size:9px;font-weight:700;color:rgba(255,255,255,.65);text-transform:uppercase;letter-spacing:.5px;line-height:1;}
-.eixo-card .ec-name{font-size:10.5px;font-weight:700;color:#fff;line-height:1.3;margin-top:2px;}
+#sb-eixos{padding:8px 8px 4px;display:flex;flex-direction:column;gap:8px;}
+.eixo-card{display:flex;align-items:center;gap:12px;padding:4px 6px;border-radius:6px;cursor:pointer;background:#fff;border:2px solid transparent;transition:border-color .15s, background .12s;}
+.eixo-card:hover{background:#f5f8ff;}
+.eixo-card.active{border-color:#08365f;background:#f0f5ff;}
+.ec-icon-box{width:62px;height:62px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:26px;color:#fff;}
+.ec-text{flex:1;min-width:0;font-size:12px;font-weight:800;text-transform:uppercase;line-height:1.35;letter-spacing:.2px;}
 
 /* Sidebar donut (other pages) */
 .donut-wrap{position:relative;width:120px;height:120px;margin:0 auto 4px;}
@@ -169,37 +166,33 @@ tbody td{padding:7px 10px;color:#1a2742;vertical-align:top;line-height:1.3;}
 
     <!-- Eixo cards (Painel Geral) -->
     <div id="sb-eixos">
-      <div class="eixo-card" id="ec-1" style="background:#1565c0"
+      <div class="eixo-card" id="ec-1"
         onclick="selEixoFn('Eixo 1 - Trabalho e Desenvolvimento Econômico')">
-        <img class="ec-icon" src="/static/eixo1.png" alt="">
-        <div class="ec-text">
-          <div class="ec-badge">Eixo 1</div>
-          <div class="ec-name">Trabalho e Desenvolvimento Econômico</div>
+        <div class="ec-icon-box" style="background:#29ABE2">
+          <i class="fas fa-hand-holding-dollar"></i>
         </div>
+        <div class="ec-text" style="color:#29ABE2">Trabalho e<br>Desenvolvimento<br>Econômico</div>
       </div>
-      <div class="eixo-card" id="ec-2" style="background:#2e7d32"
+      <div class="eixo-card" id="ec-2"
         onclick="selEixoFn('Eixo 2 - Desenvolvimento Humano e Social')">
-        <img class="ec-icon" src="/static/eixo2.png" alt="">
-        <div class="ec-text">
-          <div class="ec-badge">Eixo 2</div>
-          <div class="ec-name">Desenvolvimento Humano e Social</div>
+        <div class="ec-icon-box" style="background:#56B947">
+          <i class="fas fa-hands-holding-heart"></i>
         </div>
+        <div class="ec-text" style="color:#56B947">Desenvolvimento<br>Humano e Social</div>
       </div>
-      <div class="eixo-card" id="ec-3" style="background:#d84315"
+      <div class="eixo-card" id="ec-3"
         onclick="selEixoFn('Eixo 3 - Infraestrutura e Sustentabilidade')">
-        <img class="ec-icon" src="/static/eixo3.png" alt="">
-        <div class="ec-text">
-          <div class="ec-badge">Eixo 3</div>
-          <div class="ec-name">Infraestrutura e Sustentabilidade</div>
+        <div class="ec-icon-box" style="background:#F7941D">
+          <i class="fas fa-city"></i>
         </div>
+        <div class="ec-text" style="color:#F7941D">Infraestrutura e<br>Sustentabilidade</div>
       </div>
-      <div class="eixo-card ec4" id="ec-4" style="background:#4527a0"
+      <div class="eixo-card" id="ec-4"
         onclick="selEixoFn('Eixo 4 - Gestão, Governança e Inovação')">
-        <img class="ec-icon" src="/static/eixo4.png" alt="">
-        <div class="ec-text">
-          <div class="ec-badge">Eixo 4</div>
-          <div class="ec-name">Gestão, Governança e Inovação</div>
+        <div class="ec-icon-box" style="background:#1C4F8E">
+          <i class="fas fa-people-group"></i>
         </div>
+        <div class="ec-text" style="color:#1C4F8E">Gestão,<br>Governança<br>e Inovação</div>
       </div>
     </div>
 
