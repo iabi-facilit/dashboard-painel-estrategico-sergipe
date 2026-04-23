@@ -117,6 +117,11 @@ tbody td{padding:7px 10px;color:#1a2742;vertical-align:top;line-height:1.3;}
 .sec-hdr h3{font-size:13px;font-weight:800;color:#08365f;text-transform:uppercase;letter-spacing:.5px;}
 .sec-badge{background:#1E63A0;color:#fff;border-radius:10px;padding:1px 8px;font-size:10px;font-weight:700;}
 
+/* Botão voltar */
+.btn-back{display:inline-flex;align-items:center;gap:6px;padding:4px 10px 4px 6px;border:none;background:none;color:#5a7190;font-size:12px;font-weight:600;cursor:pointer;border-radius:5px;transition:all .12s;flex-shrink:0;margin-bottom:8px;}
+.btn-back:hover{background:#eef2f7;color:#08365f;}
+.btn-back svg{width:16px;height:16px;flex-shrink:0;}
+
 /* Search row */
 .search-row{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
 .search-input{flex:1;padding:7px 10px;border:1.5px solid #c5d3e3;border-radius:4px;font-size:12px;color:#1a2742;background:#fff;}
@@ -333,6 +338,7 @@ tbody td{padding:7px 10px;color:#1a2742;vertical-align:top;line-height:1.3;}
     <!-- METAS -->
     <div class="page" id="page-metas">
       <div class="page-inner">
+        <button class="btn-back" onclick="switchPage('painel-geral')"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="10,3 5,8 10,13"/></svg>Voltar</button>
         <div class="search-row">
           <input class="search-input" type="text" id="search-metas" placeholder="Buscar meta..." oninput="debounce(loadMetas,400)()">
           <span class="sec-badge" id="metas-count">—</span>
@@ -355,6 +361,7 @@ tbody td{padding:7px 10px;color:#1a2742;vertical-align:top;line-height:1.3;}
     <!-- AÇÕES -->
     <div class="page" id="page-acoes">
       <div class="page-inner">
+        <button class="btn-back" onclick="switchPage('painel-geral')"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="10,3 5,8 10,13"/></svg>Voltar</button>
         <div class="search-row">
           <input class="search-input" type="text" id="search-acoes" placeholder="Buscar ação..." oninput="debounce(loadAcoes,400)()">
           <span class="sec-badge" id="acoes-count">—</span>
@@ -377,6 +384,7 @@ tbody td{padding:7px 10px;color:#1a2742;vertical-align:top;line-height:1.3;}
     <!-- PONTOS DE CONTROLE -->
     <div class="page" id="page-pontos-controle">
       <div class="page-inner">
+        <button class="btn-back" onclick="switchPage('painel-geral')"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="10,3 5,8 10,13"/></svg>Voltar</button>
         <div class="search-row">
           <input class="search-input" type="text" id="search-ctrl" placeholder="Buscar ponto de controle..." oninput="debounce(loadCtrl,400)()">
           <span class="sec-badge" id="ctrl-count">—</span>
@@ -402,6 +410,7 @@ tbody td{padding:7px 10px;color:#1a2742;vertical-align:top;line-height:1.3;}
     <!-- PONTOS DE BALANÇO -->
     <div class="page" id="page-pontos-balanco">
       <div class="page-inner">
+        <button class="btn-back" onclick="switchPage('painel-geral')"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="10,3 5,8 10,13"/></svg>Voltar</button>
         <div class="search-row">
           <input class="search-input" type="text" id="search-bal" placeholder="Buscar ponto de balanço..." oninput="debounce(loadBal,400)()">
           <span class="sec-badge" id="bal-count">—</span>
