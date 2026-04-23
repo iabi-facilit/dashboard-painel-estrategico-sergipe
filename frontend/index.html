@@ -653,7 +653,7 @@ const _tbodyIds = {'painel-geral':'pg-tbody','metas':'metas-tbody','acoes':'acoe
 const _colCounts = {'painel-geral':5,'metas':5,'acoes':5,'pontos-controle':8,'pontos-balanco':8};
 
 function applyTableRender(page) {
-  const rows0 = lastData[page] || [];
+  const rows0 = (lastData[page]?.tabela) || [];
   const ss = selStatus[page];
   let rows = ss ? rows0.filter(r => r.status === ss) : [...rows0];
   const st = sortState[page];
@@ -703,6 +703,30 @@ function syncSortHeaders(page) {
   });
 }
 
+function applyPageRender(page) {
+  const ld = lastData[page];
+  if (!ld) return;
+  const ss = selStatus[page];
+  if (page === 'painel-geral') {
+    const projData = ss ? (ld.donuts?.proj||[]).filter(d => d.status === ss) : (ld.donuts?.proj||[]);
+    renderDonut('dc-proj', projData, { cutout:'65%', onClickStatus: s => clickStatus('painel-geral', s) });
+    const projTotal = projData.reduce((s,d) => s + d.qtd, 0);
+    document.getElementById('dc-proj-n').textContent = projTotal;
+    syncDcCtrSizes();
+    const filteredCount = ss ? (ld.tabela||[]).filter(r => r.status === ss).length : (ld.tabela||[]).length;
+    document.getElementById('pg-count').textContent = filteredCount;
+  } else {
+    const fullDonut = ld.donut || [];
+    const filteredDonut = ss ? fullDonut.filter(d => d.status === ss) : fullDonut;
+    const total = filteredDonut.reduce((s,d) => s + d.qtd, 0);
+    const labels = {metas:'Metas',acoes:'Ações','pontos-controle':'Pts. Controle','pontos-balanco':'Pts. Balanço'};
+    const sublabels = {metas:'metas',acoes:'ações','pontos-controle':'registros','pontos-balanco':'registros'};
+    renderSidebarDonut(filteredDonut, labels[page], total, page);
+    document.getElementById('sb-total-label').textContent = sublabels[page];
+  }
+  applyTableRender(page);
+}
+
 function sortCol(page, col) {
   const s = sortState[page] || {col:null,dir:1};
   sortState[page] = s.col===col ? (s.dir===1 ? {col,dir:-1} : {col:null,dir:1}) : {col,dir:1};
@@ -712,7 +736,7 @@ function sortCol(page, col) {
 function clickStatus(page, status) {
   selStatus[page] = selStatus[page]===status ? null : status;
   if (page !== curPage) { switchPage(page); }
-  else { applyTableRender(page); }
+  else { applyPageRender(page); }
 }
 
 // ── LOADERS ───────────────────────────────────────────
@@ -724,22 +748,22 @@ async function loadPainelGeral() {
   if (!d) return;
   const tot = d.totais;
 
-  renderDonut('dc-proj', d.projetos_donut, { cutout:'65%', onClickStatus: s => clickStatus('painel-geral', s) });
-  renderDonut('dc-meta', d.metas_donut,    { cutout:'65%', onClickStatus: s => clickStatus('metas', s) });
-  renderDonut('dc-acao', d.acoes_donut,    { cutout:'65%', onClickStatus: s => clickStatus('acoes', s) });
-  renderDonut('dc-ctrl', d.ctrl_donut,     { cutout:'65%', onClickStatus: s => clickStatus('pontos-controle', s) });
-  renderDonut('dc-bal',  d.balanco_donut,  { cutout:'65%', onClickStatus: s => clickStatus('pontos-balanco', s) });
+  lastData['painel-geral'] = {
+    tabela: d.tabela,
+    donuts: { proj: d.projetos_donut, meta: d.metas_donut, acao: d.acoes_donut, ctrl: d.ctrl_donut, bal: d.balanco_donut },
+    totais: tot
+  };
 
-  document.getElementById('dc-proj-n').textContent = tot.projetos;
+  renderDonut('dc-meta', d.metas_donut, { cutout:'65%', onClickStatus: s => clickStatus('metas', s) });
+  renderDonut('dc-acao', d.acoes_donut, { cutout:'65%', onClickStatus: s => clickStatus('acoes', s) });
+  renderDonut('dc-ctrl', d.ctrl_donut,  { cutout:'65%', onClickStatus: s => clickStatus('pontos-controle', s) });
+  renderDonut('dc-bal',  d.balanco_donut, { cutout:'65%', onClickStatus: s => clickStatus('pontos-balanco', s) });
   document.getElementById('dc-meta-n').textContent = tot.metas;
   document.getElementById('dc-acao-n').textContent = tot.acoes;
   document.getElementById('dc-ctrl-n').textContent = tot.ctrl;
   document.getElementById('dc-bal-n').textContent  = tot.balanco;
-  syncDcCtrSizes();
 
-  document.getElementById('pg-count').textContent = d.tabela.length;
-  lastData['painel-geral'] = d.tabela;
-  applyTableRender('painel-geral');
+  applyPageRender('painel-geral');
 }
 
 async function loadMetas() {
@@ -749,10 +773,8 @@ async function loadMetas() {
   if (s) qs.set('search', s);
   const d = await fetch('/api/metas?' + qs).then(r => r.json()).catch(() => null);
   if (!d) return;
-  renderSidebarDonut(d.donut, 'Metas', d.total, 'metas');
-  document.getElementById('sb-total-label').textContent = 'metas';
-  lastData['metas'] = d.tabela;
-  applyTableRender('metas');
+  lastData['metas'] = { tabela: d.tabela, donut: d.donut, total: d.total };
+  applyPageRender('metas');
 }
 
 async function loadAcoes() {
@@ -762,10 +784,8 @@ async function loadAcoes() {
   if (s) qs.set('search', s);
   const d = await fetch('/api/acoes?' + qs).then(r => r.json()).catch(() => null);
   if (!d) return;
-  renderSidebarDonut(d.donut, 'Ações', d.total, 'acoes');
-  document.getElementById('sb-total-label').textContent = 'ações';
-  lastData['acoes'] = d.tabela;
-  applyTableRender('acoes');
+  lastData['acoes'] = { tabela: d.tabela, donut: d.donut, total: d.total };
+  applyPageRender('acoes');
 }
 
 async function loadCtrl() {
@@ -778,10 +798,8 @@ async function loadCtrl() {
   if (s) qs.set('search', s);
   const d = await fetch('/api/pontos?' + qs).then(r => r.json()).catch(() => null);
   if (!d) return;
-  renderSidebarDonut(d.donut, 'Pts. Controle', d.total, 'pontos-controle');
-  document.getElementById('sb-total-label').textContent = 'registros';
-  lastData['pontos-controle'] = d.tabela;
-  applyTableRender('pontos-controle');
+  lastData['pontos-controle'] = { tabela: d.tabela, donut: d.donut, total: d.total };
+  applyPageRender('pontos-controle');
 }
 
 async function loadBal() {
@@ -794,25 +812,8 @@ async function loadBal() {
   if (s) qs.set('search', s);
   const d = await fetch('/api/pontos?' + qs).then(r => r.json()).catch(() => null);
   if (!d) return;
-  renderSidebarDonut(d.donut, 'Pts. Balanço', d.total, 'pontos-balanco');
-  document.getElementById('sb-total-label').textContent = 'registros';
-  lastData['pontos-balanco'] = d.tabela;
-  applyTableRender('pontos-balanco');
-}
-
-function renderPontosRows(tabela) {
-  if (!tabela.length) return '<tr><td colspan="8" style="text-align:center;color:#8a9bb5;padding:16px">Sem dados</td></tr>';
-  return tabela.map(r => `
-    <tr>
-      <td>${r.unidade || '—'}</td>
-      <td>${r.encaminhamento || '—'}</td>
-      <td>${r.responsavel || '—'}</td>
-      <td style="color:#5a7190">${r.ultimo_comentario || '—'}</td>
-      <td>${fmtDate(r.termino_previsto)}</td>
-      <td><span class="td-status"><span class="td-dot" style="background:${statusColor(r.status)}"></span>${r.status || '—'}</span></td>
-      <td style="font-size:10px">${r.entidades || '—'}</td>
-      <td>${r.url ? `<a class="td-link" href="${r.url}" target="_blank">Abrir ↗</a>` : '—'}</td>
-    </tr>`).join('');
+  lastData['pontos-balanco'] = { tabela: d.tabela, donut: d.donut, total: d.total };
+  applyPageRender('pontos-balanco');
 }
 
 // ── UTILS ─────────────────────────────────────────────
