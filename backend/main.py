@@ -19,7 +19,18 @@ _cache: dict = {}
 _cache_lock = threading.Lock()
 CACHE_TTL = 300
 
-# Eixos estratégicos presentes no banco
+# IDs dos 4 eixos estratégicos em tbl_acaoprioritaria.tagid
+EIXOS_IDS = [101, 102, 103, 104]
+
+# Mapeamento nome → tagid (para filtro por eixo selecionado)
+EIXO_TO_TAGID = {
+    "Eixo 1 - Trabalho e Desenvolvimento Econômico": 101,
+    "Eixo 2 - Desenvolvimento Humano e Social":       102,
+    "Eixo 3 - Infraestrutura e Sustentabilidade":     103,
+    "Eixo 4 - Gestão, Governança e Inovação":         104,
+}
+
+# Nomes para exibição (ordem fixa)
 EIXOS = [
     "Eixo 1 - Trabalho e Desenvolvimento Econômico",
     "Eixo 2 - Desenvolvimento Humano e Social",
@@ -80,16 +91,19 @@ def filtros():
             SELECT DISTINCT p.acronym
             FROM {S}.tbl_planooperativo p
             JOIN {S}.tbl_acaoprioritaria a ON a.uuid_ = p.fatheruuid
-            WHERE p.ativo = true AND a.tag = ANY(%s) AND p.acronym IS NOT NULL
+            WHERE p.ativo = true
+              AND a.tagid = ANY(%s)
+              AND a.ativo = 'true'
+              AND p.acronym IS NOT NULL
             ORDER BY p.acronym
-        """, (EIXOS,))
+        """, (EIXOS_IDS,))
 
         eixos_db = rows(cur, f"""
-            SELECT DISTINCT tag
+            SELECT DISTINCT tagid, tag
             FROM {S}.tbl_acaoprioritaria
-            WHERE tag = ANY(%s)
-            ORDER BY tag
-        """, (EIXOS,))
+            WHERE tagid = ANY(%s) AND ativo = 'true'
+            ORDER BY tagid
+        """, (EIXOS_IDS,))
 
         trimestres = rows(cur, f"""
             SELECT DISTINCT
@@ -114,7 +128,7 @@ def filtros():
 
         result = {
             "unidades": [r["acronym"] for r in unidades],
-            "eixos": [r["tag"] for r in eixos_db] or EIXOS,
+            "eixos": [r["tag"] for r in eixos_db] or EIXOS,  # nomes para o frontend
             "trimestres": trimestres,
             "meses": meses,
         }
@@ -134,7 +148,8 @@ def painel_geral(
     if cached:
         return cached
 
-    tags = [eixo] if eixo else EIXOS
+    # Resolve tagids — filtro por eixo específico ou todos os 4 eixos
+    tagids = [EIXO_TO_TAGID[eixo]] if eixo and eixo in EIXO_TO_TAGID else EIXOS_IDS
     ua = ("AND a.acronym = %s", [unidade]) if unidade else ("", [])
     up = ("AND p.acronym = %s", [unidade]) if unidade else ("", [])
     ut = ("AND t.acronym = %s", [unidade]) if unidade else ("", [])
@@ -149,18 +164,18 @@ def painel_geral(
             SELECT a.status, COUNT(DISTINCT a.uuid_) AS qtd
             FROM {S}.tbl_acaoprioritaria a
             JOIN {S}.tbl_planooperativo p ON p.fatheruuid = a.uuid_ AND p.ativo = true
-            WHERE a.tag = ANY(%s) {ua[0]}
+            WHERE a.tagid = ANY(%s) AND a.ativo = 'true' {ua[0]}
             GROUP BY a.status ORDER BY qtd DESC
-        """, [tags] + ua[1])
+        """, [tagids] + ua[1])
 
         # Metas
         metas_donut = rows(cur, f"""
             SELECT p.status, COUNT(*) AS qtd
             FROM {S}.tbl_planooperativo p
             JOIN {S}.tbl_acaoprioritaria a ON a.uuid_ = p.fatheruuid
-            WHERE p.ativo = true AND a.tag = ANY(%s) {up[0]}
+            WHERE p.ativo = true AND a.tagid = ANY(%s) AND a.ativo = 'true' {up[0]}
             GROUP BY p.status ORDER BY qtd DESC
-        """, [tags] + up[1])
+        """, [tagids] + up[1])
 
         # Ações — tbl_tarefa standalone (fatheruuid não cruza com outras tabelas)
         acoes_donut = rows(cur, f"""
@@ -196,9 +211,9 @@ def painel_geral(
                 a.tag AS eixo
             FROM {S}.tbl_acaoprioritaria a
             JOIN {S}.tbl_planooperativo p ON p.fatheruuid = a.uuid_ AND p.ativo = true
-            WHERE a.tag = ANY(%s) {ua[0]}
+            WHERE a.tagid = ANY(%s) AND a.ativo = 'true' {ua[0]}
             ORDER BY a.uuid_, a.entidade
-        """, [tags] + ua[1])
+        """, [tagids] + ua[1])
 
         def total(d): return sum(r["qtd"] for r in d)
 
@@ -237,8 +252,8 @@ def metas(
     try:
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-        w = ["p.ativo = true", "a.tag = ANY(%s)"]
-        params: list = [EIXOS]
+        w = ["p.ativo = true", "a.tagid = ANY(%s)", "a.ativo = 'true'"]
+        params: list = [EIXOS_IDS]
         if unidade:
             w.append("p.acronym = %s")
             params.append(unidade)
