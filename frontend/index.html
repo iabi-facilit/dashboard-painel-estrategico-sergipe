@@ -55,11 +55,15 @@ body{display:flex;flex-direction:column;background:#eef2f7;font-family:'Segoe UI
 .leg-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .leg-qty{font-weight:700;color:#08365f;white-space:nowrap;}
 
-/* Chips */
+/* Chips genéricos (trimestre/mês) */
 .chips{display:flex;flex-wrap:wrap;gap:4px;}
 .chip{padding:3px 8px;border-radius:12px;font-size:10px;font-weight:700;cursor:pointer;border:1.5px solid #c5d3e3;background:#fff;color:#3d5470;transition:all .12s;}
 .chip:hover{border-color:#08365f;color:#08365f;}
 .chip.active{background:#08365f;border-color:#08365f;color:#fff;}
+
+/* Unidade chips — grid 2 colunas centralizado */
+#chips-unidade{display:grid;grid-template-columns:1fr 1fr;gap:5px;padding:2px 0;}
+#chips-unidade .chip{padding:5px 4px;border-radius:20px;font-size:10px;font-weight:500;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border:1.5px solid #c5d3e3;background:#fff;color:#3d5470;letter-spacing:0;}
 
 /* Limpar filtros */
 #btn-limpar{width:calc(100% - 20px);margin:6px 10px 8px;padding:6px 8px;border:1.5px solid #c5d3e3;border-radius:6px;background:#fff;font-size:11px;font-weight:700;color:#5a7190;cursor:pointer;text-align:left;display:flex;align-items:center;gap:7px;transition:all .12s;letter-spacing:.3px;}
@@ -252,9 +256,12 @@ tbody td{padding:7px 10px;color:#1a2742;vertical-align:top;line-height:1.3;}
     </button>
 
     <!-- Unidade filter -->
-    <div class="sb-section">
-      <div class="sb-label">Unidade Relacionada <span id="sb-unidade-sel" style="font-weight:400;color:#8a9bb5;text-transform:none;letter-spacing:0;font-size:9px;"></span></div>
-      <div class="chips" id="chips-unidade"></div>
+    <div class="sb-section" style="padding:8px 10px 10px;">
+      <div class="sb-label" style="text-align:center;font-size:11px;letter-spacing:.3px;margin-bottom:8px;">
+        Unidade Relacionada
+        <span id="sb-unidade-sel" style="font-weight:400;color:#8a9bb5;text-transform:none;letter-spacing:0;font-size:9px;"></span>
+      </div>
+      <div id="chips-unidade"></div>
     </div>
 
     <!-- Trimestre/Mês (Pontos pages) -->
