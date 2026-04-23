@@ -36,12 +36,12 @@ body{display:flex;flex-direction:column;background:#eef2f7;font-family:'Segoe UI
 .sb-label{font-size:10px;font-weight:800;color:#08365f;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;}
 
 /* Eixo cards */
-#sb-eixos{padding:8px 8px 4px;display:flex;flex-direction:column;gap:8px;}
-.eixo-card{display:flex;align-items:center;gap:13px;padding:4px 6px;border-radius:6px;cursor:pointer;background:#fff;border:2.5px solid transparent;transition:border-color .15s, background .12s;}
+#sb-eixos{padding:10px 8px 6px;display:flex;flex-direction:column;gap:6px;}
+.eixo-card{display:flex;align-items:center;gap:12px;padding:6px 8px;border-radius:8px;cursor:pointer;background:#fff;border:2.5px solid transparent;transition:border-color .15s, background .12s;width:100%;}
 .eixo-card:hover{background:#f5f8ff;}
 .eixo-card.active{border-color:#08365f;background:#f0f5ff;}
-.ec-icon-box{width:66px;height:66px;border-radius:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:30px;color:#fff;}
-.ec-text{flex:1;min-width:0;font-size:13px;font-weight:900;text-transform:uppercase;line-height:1.3;letter-spacing:.1px;}
+.ec-icon-box{width:66px;height:66px;min-width:66px;border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:30px;color:#fff;}
+.ec-text{flex:1;min-width:0;font-size:12.5px;font-weight:900;text-transform:uppercase;line-height:1.32;letter-spacing:.1px;}
 
 /* Sidebar donut (other pages) */
 .donut-wrap{position:relative;width:120px;height:120px;margin:0 auto 4px;}
@@ -175,10 +175,10 @@ tbody td{padding:7px 10px;color:#1a2742;vertical-align:top;line-height:1.3;}
       </div>
       <div class="eixo-card" id="ec-2"
         onclick="selEixoFn('Eixo 2 - Desenvolvimento Humano e Social')">
-        <div class="ec-icon-box" style="background:#56B947">
+        <div class="ec-icon-box" style="background:#6BBF4E">
           <i class="fas fa-hands-holding-heart"></i>
         </div>
-        <div class="ec-text" style="color:#56B947">Desenvolvimento<br>Humano e Social</div>
+        <div class="ec-text" style="color:#6BBF4E">Desenvolvimento<br>Humano e Social</div>
       </div>
       <div class="eixo-card" id="ec-3"
         onclick="selEixoFn('Eixo 3 - Infraestrutura e Sustentabilidade')">
