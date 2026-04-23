@@ -28,9 +28,7 @@ body{display:flex;flex-direction:column;background:#eef2f7;font-family:'Segoe UI
 #body{flex:1;display:flex;overflow:hidden;min-height:0;}
 
 /* ── SIDEBAR ──────────────────────────────────────────── */
-#sidebar{width:275px;flex-shrink:0;background:#fff;border-right:1px solid #d6e1ee;display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden;}
-#sidebar::-webkit-scrollbar{width:3px;}
-#sidebar::-webkit-scrollbar-thumb{background:rgba(8,54,95,.15);}
+#sidebar{width:275px;flex-shrink:0;background:#fff;border-right:1px solid #d6e1ee;display:flex;flex-direction:column;overflow:hidden;}
 
 .sb-section{padding:8px 10px 6px;}
 .sb-label{font-size:10px;font-weight:800;color:#08365f;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;}
@@ -62,6 +60,9 @@ body{display:flex;flex-direction:column;background:#eef2f7;font-family:'Segoe UI
 .chip.active{background:#08365f;border-color:#08365f;color:#fff;}
 
 /* Unidade chips — grid 2 colunas centralizado */
+#chips-unidade-wrap{max-height:220px;overflow-y:auto;padding-right:2px;}
+#chips-unidade-wrap::-webkit-scrollbar{width:3px;}
+#chips-unidade-wrap::-webkit-scrollbar-thumb{background:rgba(8,54,95,.2);border-radius:3px;}
 #chips-unidade{display:grid;grid-template-columns:1fr 1fr;gap:5px;padding:2px 0;}
 #chips-unidade .chip{padding:3px 4px;border-radius:20px;font-size:10px;font-weight:500;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border:1.5px solid #8CBBE4;background:#fff;color:#3d5470;letter-spacing:0;}
 
@@ -261,7 +262,7 @@ tbody td{padding:7px 10px;color:#1a2742;vertical-align:top;line-height:1.3;}
         Unidade Relacionada
         <span id="sb-unidade-sel" style="font-weight:400;color:#8a9bb5;text-transform:none;letter-spacing:0;font-size:9px;"></span>
       </div>
-      <div id="chips-unidade"></div>
+      <div id="chips-unidade-wrap"><div id="chips-unidade"></div></div>
     </div>
 
     <!-- Trimestre/Mês (Pontos pages) -->
