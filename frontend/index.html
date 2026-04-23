@@ -634,7 +634,7 @@ async function loadPainelGeral() {
   document.getElementById('pg-count').textContent = d.tabela.length;
   document.getElementById('pg-tbody').innerHTML = d.tabela.map(r => `
     <tr>
-      <td class="td-trunc">${r.projeto || '—'}</td>
+      <td>${r.projeto || '—'}</td>
       <td>${r.responsavel || '—'}</td>
       <td><span class="td-status"><span class="td-dot" style="background:${statusColor(r.status)}"></span>${r.status || '—'}</span></td>
       <td>${r.unidade || '—'}</td>
@@ -674,7 +674,7 @@ async function loadAcoes() {
   document.getElementById('acoes-count').textContent = d.tabela.length;
   document.getElementById('acoes-tbody').innerHTML = d.tabela.map(r => `
     <tr>
-      <td class="td-trunc">${r.acao || '—'}</td>
+      <td>${r.acao || '—'}</td>
       <td>${r.responsavel || '—'}</td>
       <td>${fmtDate(r.termino_previsto)}</td>
       <td><span class="td-status"><span class="td-dot" style="background:${statusColor(r.status)}"></span>${r.status || '—'}</span></td>
@@ -719,9 +719,9 @@ function renderPontosRows(tabela) {
   return tabela.map(r => `
     <tr>
       <td>${r.unidade || '—'}</td>
-      <td class="td-trunc" style="max-width:240px">${r.encaminhamento || '—'}</td>
+      <td>${r.encaminhamento || '—'}</td>
       <td>${r.responsavel || '—'}</td>
-      <td class="td-trunc" style="max-width:160px;color:#5a7190">${r.ultimo_comentario || '—'}</td>
+      <td style="color:#5a7190">${r.ultimo_comentario || '—'}</td>
       <td>${fmtDate(r.termino_previsto)}</td>
       <td><span class="td-status"><span class="td-dot" style="background:${statusColor(r.status)}"></span>${r.status || '—'}</span></td>
       <td style="font-size:10px">${r.entidades || '—'}</td>
