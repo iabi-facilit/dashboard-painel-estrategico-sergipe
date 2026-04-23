@@ -645,7 +645,7 @@ async function loadMetas() {
   document.getElementById('metas-count').textContent = d.tabela.length;
   document.getElementById('metas-tbody').innerHTML = d.tabela.map(r => `
     <tr>
-      <td class="td-trunc">${r.meta || '—'}</td>
+      <td>${r.meta || '—'}</td>
       <td>${r.responsavel || '—'}</td>
       <td><span class="td-status"><span class="td-dot" style="background:${statusColor(r.status)}"></span>${r.status || '—'}</span></td>
       <td>${r.unidade || '—'}</td>
