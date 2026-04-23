@@ -12,17 +12,14 @@ html,body{height:100%;overflow:hidden;}
 body{display:flex;flex-direction:column;background:#eef2f7;font-family:'Segoe UI',Calibri,Arial,sans-serif;color:#1a2742;}
 
 /* ── HEADER ──────────────────────────────────────────── */
-#header{background:#fff;height:52px;flex-shrink:0;display:flex;align-items:center;padding:0 16px;gap:12px;border-bottom:2px solid #d6e1ee;box-shadow:0 1px 4px rgba(0,0,0,.07);}
-#header img.logo-aracaju{height:38px;object-fit:contain;}
-.hdr-title{flex:1;text-align:center;}
-.hdr-title h1{font-size:19px;font-weight:800;color:#08365f;letter-spacing:.5px;}
-.hdr-date{font-size:11px;color:#5a7190;white-space:nowrap;}
+#header{background:#fff;height:46px;flex-shrink:0;display:flex;align-items:center;padding-left:291px;border-bottom:1px solid #d6e1ee;}
+.hdr-title h1{font-size:18px;font-weight:800;color:#08365f;letter-spacing:.4px;}
 
-/* ── TABS ─────────────────────────────────────────────── */
-#tabs{background:#fff;flex-shrink:0;display:flex;align-items:center;padding:0 12px;gap:4px;border-bottom:2px solid #d6e1ee;height:40px;}
-.tab-btn{padding:5px 13px;border:none;background:none;font-size:12px;font-weight:700;color:#5a7190;cursor:pointer;border-radius:4px;letter-spacing:.3px;text-transform:uppercase;transition:all .15s;white-space:nowrap;}
-.tab-btn:hover{background:#eef2f7;color:#08365f;}
-.tab-btn.active{background:#08365f;color:#fff;}
+/* ── SIDEBAR NAV ──────────────────────────────────────── */
+#sb-nav{display:flex;flex-direction:column;gap:1px;padding:8px 8px 6px;border-bottom:1px solid #eef2f7;flex-shrink:0;}
+.sb-nav-btn{display:block;width:100%;text-align:left;padding:6px 10px;border:none;background:none;font-size:11.5px;font-weight:600;color:#5a7190;cursor:pointer;border-radius:5px;transition:all .12s;letter-spacing:.1px;}
+.sb-nav-btn:hover{background:#eef2f7;color:#08365f;}
+.sb-nav-btn.active{background:#08365f;color:#fff;font-weight:700;}
 
 /* ── BODY ─────────────────────────────────────────────── */
 #body{flex:1;display:flex;overflow:hidden;min-height:0;}
@@ -147,20 +144,7 @@ tbody td{padding:7px 10px;color:#1a2742;vertical-align:top;line-height:1.3;}
 
 <!-- HEADER -->
 <div id="header">
-  <img class="logo-aracaju" src="/static/logo_aracaju.png" alt="Prefeitura de Aracaju" onerror="this.style.display='none'">
-  <div class="hdr-title">
-    <h1>Painel Estratégico Geral</h1>
-  </div>
-  <span class="hdr-date" id="hdr-date">—</span>
-</div>
-
-<!-- TABS -->
-<div id="tabs">
-  <button class="tab-btn active" onclick="switchPage('painel-geral')">&#9679; Painel Geral</button>
-  <button class="tab-btn" onclick="switchPage('metas')">Metas</button>
-  <button class="tab-btn" onclick="switchPage('acoes')">Ações</button>
-  <button class="tab-btn" onclick="switchPage('pontos-controle')">Pontos de Controle</button>
-  <button class="tab-btn" onclick="switchPage('pontos-balanco')">Pontos de Balanço</button>
+  <div class="hdr-title"><h1>Painel Estratégico Geral</h1></div>
 </div>
 
 <!-- BODY -->
@@ -168,6 +152,15 @@ tbody td{padding:7px 10px;color:#1a2742;vertical-align:top;line-height:1.3;}
 
   <!-- SIDEBAR -->
   <div id="sidebar">
+
+    <!-- Navegação -->
+    <div id="sb-nav">
+      <button class="sb-nav-btn active" onclick="switchPage('painel-geral')">Painel Geral</button>
+      <button class="sb-nav-btn" onclick="switchPage('metas')">Metas</button>
+      <button class="sb-nav-btn" onclick="switchPage('acoes')">Ações</button>
+      <button class="sb-nav-btn" onclick="switchPage('pontos-controle')">Pontos de Controle</button>
+      <button class="sb-nav-btn" onclick="switchPage('pontos-balanco')">Pontos de Balanço</button>
+    </div>
 
     <!-- Eixo cards (Painel Geral) -->
     <div id="sb-eixos">
@@ -586,7 +579,7 @@ function buildMesChips() {
 function switchPage(id) {
   curPage = id;
   const pages = ['painel-geral','metas','acoes','pontos-controle','pontos-balanco'];
-  document.querySelectorAll('.tab-btn').forEach((b, i) => b.classList.toggle('active', pages[i] === id));
+  document.querySelectorAll('.sb-nav-btn').forEach((b, i) => b.classList.toggle('active', pages[i] === id));
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById(`page-${id}`)?.classList.add('active');
 
@@ -775,8 +768,6 @@ document.querySelectorAll('.dc-rel').forEach(el => _dcRo.observe(el));
 
 // ── INIT ──────────────────────────────────────────────
 async function init() {
-  document.getElementById('hdr-date').textContent = new Date().toLocaleDateString('pt-BR');
-
   filtros = await fetch('/api/filtros').then(r => r.json()).catch(() => ({ unidades: [], eixos: [], trimestres: [], meses: [] }));
 
   buildChips('chips-unidade', filtros.unidades, null, selUnidadeFn);
