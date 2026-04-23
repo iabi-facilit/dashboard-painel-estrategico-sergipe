@@ -122,6 +122,18 @@ tbody td{padding:7px 10px;color:#1a2742;vertical-align:top;line-height:1.3;}
 .btn-back:hover{background:#eef2f7;color:#08365f;}
 .btn-back svg{width:16px;height:16px;flex-shrink:0;}
 
+/* Tabelas de encaminhamentos — sem scroll horizontal */
+.tbl-pontos{table-layout:fixed;width:100%;}
+.tbl-pontos th,.tbl-pontos td{white-space:normal;word-break:break-word;vertical-align:top;}
+.tbl-pontos col.c-unidade    {width:8%;}
+.tbl-pontos col.c-encam      {width:28%;}
+.tbl-pontos col.c-resp       {width:13%;}
+.tbl-pontos col.c-comentario {width:18%;}
+.tbl-pontos col.c-termino    {width:10%;}
+.tbl-pontos col.c-status     {width:11%;}
+.tbl-pontos col.c-entidades  {width:8%;}
+.tbl-pontos col.c-link       {width:4%;}
+
 /* Search row */
 .search-row{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
 .search-input{flex:1;padding:7px 10px;border:1.5px solid #c5d3e3;border-radius:4px;font-size:12px;color:#1a2742;background:#fff;}
@@ -390,12 +402,13 @@ tbody td{padding:7px 10px;color:#1a2742;vertical-align:top;line-height:1.3;}
           <span class="sec-badge" id="ctrl-count">—</span>
         </div>
         <div class="tbl-wrap">
-          <table>
+          <table class="tbl-pontos">
+            <colgroup><col class="c-unidade"><col class="c-encam"><col class="c-resp"><col class="c-comentario"><col class="c-termino"><col class="c-status"><col class="c-entidades"><col class="c-link"></colgroup>
             <thead><tr>
               <th>Unidade</th>
-              <th style="min-width:240px">Encaminhamento</th>
+              <th>Encaminhamento</th>
               <th>Responsável</th>
-              <th style="min-width:160px">Último Comentário</th>
+              <th>Último Comentário</th>
               <th>Término Previsto</th>
               <th>Status</th>
               <th>Entidades</th>
@@ -416,12 +429,13 @@ tbody td{padding:7px 10px;color:#1a2742;vertical-align:top;line-height:1.3;}
           <span class="sec-badge" id="bal-count">—</span>
         </div>
         <div class="tbl-wrap">
-          <table>
+          <table class="tbl-pontos">
+            <colgroup><col class="c-unidade"><col class="c-encam"><col class="c-resp"><col class="c-comentario"><col class="c-termino"><col class="c-status"><col class="c-entidades"><col class="c-link"></colgroup>
             <thead><tr>
               <th>Unidade</th>
-              <th style="min-width:240px">Encaminhamento</th>
+              <th>Encaminhamento</th>
               <th>Responsável</th>
-              <th style="min-width:160px">Último Comentário</th>
+              <th>Último Comentário</th>
               <th>Término Previsto</th>
               <th>Status</th>
               <th>Entidades</th>
