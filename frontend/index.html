@@ -117,6 +117,13 @@ tbody td{padding:7px 10px;color:#1a2742;vertical-align:top;line-height:1.3;}
 .sec-hdr h3{font-size:13px;font-weight:800;color:#08365f;text-transform:uppercase;letter-spacing:.5px;}
 .sec-badge{background:#1E63A0;color:#fff;border-radius:10px;padding:1px 8px;font-size:10px;font-weight:700;}
 
+/* Colunas ordenáveis */
+.th-sort{cursor:pointer;user-select:none;}
+.th-sort:hover{background:#0a4070 !important;}
+.th-sort::after{content:' ⇅';opacity:.3;font-size:8px;}
+.th-sort.asc::after{content:' ↑';opacity:1;}
+.th-sort.desc::after{content:' ↓';opacity:1;}
+
 /* Botão voltar */
 .btn-back{display:inline-flex;align-items:center;gap:6px;padding:4px 10px 4px 6px;border:none;background:none;color:#5a7190;font-size:12px;font-weight:600;cursor:pointer;border-radius:5px;transition:all .12s;flex-shrink:0;margin-bottom:8px;}
 .btn-back:hover{background:#eef2f7;color:#08365f;}
@@ -332,13 +339,13 @@ tbody td{padding:7px 10px;color:#1a2742;vertical-align:top;line-height:1.3;}
             <span class="sec-badge" id="pg-count">—</span>
           </div>
           <div class="tbl-wrap">
-            <table>
+            <table id="tbl-pg">
               <thead><tr>
-                <th>Projeto</th>
-                <th>Responsável</th>
-                <th>Status</th>
-                <th>Unidade</th>
-                <th>Eixo</th>
+                <th class="th-sort" data-col="projeto" onclick="sortCol('painel-geral','projeto')">Projeto</th>
+                <th class="th-sort" data-col="responsavel" onclick="sortCol('painel-geral','responsavel')">Responsável</th>
+                <th class="th-sort" data-col="status" onclick="sortCol('painel-geral','status')">Status</th>
+                <th class="th-sort" data-col="unidade" onclick="sortCol('painel-geral','unidade')">Unidade</th>
+                <th class="th-sort" data-col="eixo" onclick="sortCol('painel-geral','eixo')">Eixo</th>
               </tr></thead>
               <tbody id="pg-tbody"></tbody>
             </table>
@@ -354,16 +361,15 @@ tbody td{padding:7px 10px;color:#1a2742;vertical-align:top;line-height:1.3;}
         <button class="btn-back" onclick="switchPage('painel-geral')"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="10,3 5,8 10,13"/></svg>Voltar</button>
         <div class="search-row">
           <input class="search-input" type="text" id="search-metas" placeholder="Buscar meta..." oninput="debounce(loadMetas,400)()">
-          <span class="sec-badge" id="metas-count">—</span>
         </div>
         <div class="tbl-wrap">
-          <table>
+          <table id="tbl-metas">
             <thead><tr>
-              <th>Meta</th>
-              <th>Responsável</th>
-              <th>Status</th>
-              <th>Unidade</th>
-              <th>Término Previsto</th>
+              <th class="th-sort" data-col="meta" onclick="sortCol('metas','meta')">Meta</th>
+              <th class="th-sort" data-col="responsavel" onclick="sortCol('metas','responsavel')">Responsável</th>
+              <th class="th-sort" data-col="status" onclick="sortCol('metas','status')">Status</th>
+              <th class="th-sort" data-col="unidade" onclick="sortCol('metas','unidade')">Unidade</th>
+              <th class="th-sort" data-col="termino_previsto" onclick="sortCol('metas','termino_previsto')">Término Previsto</th>
             </tr></thead>
             <tbody id="metas-tbody"></tbody>
           </table>
@@ -377,16 +383,15 @@ tbody td{padding:7px 10px;color:#1a2742;vertical-align:top;line-height:1.3;}
         <button class="btn-back" onclick="switchPage('painel-geral')"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="10,3 5,8 10,13"/></svg>Voltar</button>
         <div class="search-row">
           <input class="search-input" type="text" id="search-acoes" placeholder="Buscar ação..." oninput="debounce(loadAcoes,400)()">
-          <span class="sec-badge" id="acoes-count">—</span>
         </div>
         <div class="tbl-wrap">
-          <table>
+          <table id="tbl-acoes">
             <thead><tr>
-              <th>Ação</th>
-              <th>Responsável</th>
-              <th>Término Previsto</th>
-              <th>Status</th>
-              <th>Unidade</th>
+              <th class="th-sort" data-col="acao" onclick="sortCol('acoes','acao')">Ação</th>
+              <th class="th-sort" data-col="responsavel" onclick="sortCol('acoes','responsavel')">Responsável</th>
+              <th class="th-sort" data-col="termino_previsto" onclick="sortCol('acoes','termino_previsto')">Término Previsto</th>
+              <th class="th-sort" data-col="status" onclick="sortCol('acoes','status')">Status</th>
+              <th class="th-sort" data-col="unidade" onclick="sortCol('acoes','unidade')">Unidade</th>
             </tr></thead>
             <tbody id="acoes-tbody"></tbody>
           </table>
@@ -401,7 +406,6 @@ tbody td{padding:7px 10px;color:#1a2742;vertical-align:top;line-height:1.3;}
         <div class="pontos-filters">
           <div class="pontos-search-box">
             <input class="search-input" type="text" id="search-ctrl" placeholder="Buscar ponto de controle..." oninput="debounce(loadCtrl,400)()">
-            <span class="sec-badge" id="ctrl-count">—</span>
           </div>
           <div class="pontos-chips-box">
             <div class="trim-chips" id="chips-trim-ctrl"></div>
@@ -409,16 +413,16 @@ tbody td{padding:7px 10px;color:#1a2742;vertical-align:top;line-height:1.3;}
           </div>
         </div>
         <div class="tbl-wrap">
-          <table class="tbl-pontos">
+          <table id="tbl-ctrl" class="tbl-pontos">
             <colgroup><col class="c-unidade"><col class="c-encam"><col class="c-resp"><col class="c-comentario"><col class="c-termino"><col class="c-status"><col class="c-entidades"><col class="c-link"></colgroup>
             <thead><tr>
-              <th>Unidade</th>
-              <th>Encaminhamento</th>
-              <th>Responsável</th>
-              <th>Último Comentário</th>
-              <th>Término Previsto</th>
-              <th>Status</th>
-              <th>Entidades</th>
+              <th class="th-sort" data-col="unidade" onclick="sortCol('pontos-controle','unidade')">Unidade</th>
+              <th class="th-sort" data-col="encaminhamento" onclick="sortCol('pontos-controle','encaminhamento')">Encaminhamento</th>
+              <th class="th-sort" data-col="responsavel" onclick="sortCol('pontos-controle','responsavel')">Responsável</th>
+              <th class="th-sort" data-col="ultimo_comentario" onclick="sortCol('pontos-controle','ultimo_comentario')">Último Comentário</th>
+              <th class="th-sort" data-col="termino_previsto" onclick="sortCol('pontos-controle','termino_previsto')">Término Previsto</th>
+              <th class="th-sort" data-col="status" onclick="sortCol('pontos-controle','status')">Status</th>
+              <th class="th-sort" data-col="entidades" onclick="sortCol('pontos-controle','entidades')">Entidades</th>
               <th>Link</th>
             </tr></thead>
             <tbody id="ctrl-tbody"></tbody>
@@ -434,25 +438,23 @@ tbody td{padding:7px 10px;color:#1a2742;vertical-align:top;line-height:1.3;}
         <div class="pontos-filters">
           <div class="pontos-search-box">
             <input class="search-input" type="text" id="search-bal" placeholder="Buscar ponto de balanço..." oninput="debounce(loadBal,400)()">
-            <span class="sec-badge" id="bal-count">—</span>
           </div>
           <div class="pontos-chips-box">
             <div class="trim-chips" id="chips-trim-bal"></div>
             <div class="mes-chips" id="chips-mes-bal"></div>
           </div>
         </div>
-        </div>
         <div class="tbl-wrap">
-          <table class="tbl-pontos">
+          <table id="tbl-bal" class="tbl-pontos">
             <colgroup><col class="c-unidade"><col class="c-encam"><col class="c-resp"><col class="c-comentario"><col class="c-termino"><col class="c-status"><col class="c-entidades"><col class="c-link"></colgroup>
             <thead><tr>
-              <th>Unidade</th>
-              <th>Encaminhamento</th>
-              <th>Responsável</th>
-              <th>Último Comentário</th>
-              <th>Término Previsto</th>
-              <th>Status</th>
-              <th>Entidades</th>
+              <th class="th-sort" data-col="unidade" onclick="sortCol('pontos-balanco','unidade')">Unidade</th>
+              <th class="th-sort" data-col="encaminhamento" onclick="sortCol('pontos-balanco','encaminhamento')">Encaminhamento</th>
+              <th class="th-sort" data-col="responsavel" onclick="sortCol('pontos-balanco','responsavel')">Responsável</th>
+              <th class="th-sort" data-col="ultimo_comentario" onclick="sortCol('pontos-balanco','ultimo_comentario')">Último Comentário</th>
+              <th class="th-sort" data-col="termino_previsto" onclick="sortCol('pontos-balanco','termino_previsto')">Término Previsto</th>
+              <th class="th-sort" data-col="status" onclick="sortCol('pontos-balanco','status')">Status</th>
+              <th class="th-sort" data-col="entidades" onclick="sortCol('pontos-balanco','entidades')">Entidades</th>
               <th>Link</th>
             </tr></thead>
             <tbody id="bal-tbody"></tbody>
@@ -471,6 +473,9 @@ let filtros = { unidades: [], eixos: [], trimestres: [], meses: [] };
 let selUnidade = null, selEixo = null, selTri = null, selMes = null;
 let charts = {};
 let debounceTimers = {};
+let lastData = {};
+let sortState = {};
+let selStatus = {};
 
 // ── STATUS COLORS ────────────────────────────────────
 function statusColor(s) {
@@ -517,14 +522,20 @@ function renderDonut(id, data, opts = {}) {
         legend: { display: false },
         tooltip: { callbacks: { label: c => ` ${data[c.dataIndex]?.status}: ${c.raw}` } }
       },
-      animation: { duration: 350 }
+      animation: { duration: 350 },
+      onClick: opts.onClickStatus ? (e, els) => {
+        if (!els.length) return;
+        const status = data[els[0].index]?.status;
+        if (status) opts.onClickStatus(status);
+      } : undefined,
     }
   });
+  if (opts.onClickStatus) el.style.cursor = 'pointer';
 }
 
 // ── SIDEBAR DONUT (other pages) ───────────────────────
-function renderSidebarDonut(data, label, total) {
-  renderDonut('sb-donut', data, { cutout: '70%' });
+function renderSidebarDonut(data, label, total, page) {
+  renderDonut('sb-donut', data, { cutout: '70%', onClickStatus: page ? s => clickStatus(page, s) : null });
   document.getElementById('sb-total').textContent = total;
   document.getElementById('sb-donut-label').textContent = label;
   const total2 = data.reduce((s, d) => s + d.qtd, 0);
@@ -626,6 +637,7 @@ function reloadCurrentPage() {
 
 function limparFiltros() {
   selUnidade = null; selEixo = null; selTri = null; selMes = null;
+  selStatus = {}; sortState = {};
   buildChips('chips-unidade', filtros.unidades, null, selUnidadeFn);
   buildEixoCards();
   buildTrimChips();
@@ -633,6 +645,74 @@ function limparFiltros() {
   document.getElementById('sb-unidade-sel').textContent = '';
   document.querySelectorAll('.search-input').forEach(i => i.value = '');
   reloadCurrentPage();
+}
+
+// ── SORT / FILTER HELPERS ────────────────────────────
+const _tblIds = {'painel-geral':'tbl-pg','metas':'tbl-metas','acoes':'tbl-acoes','pontos-controle':'tbl-ctrl','pontos-balanco':'tbl-bal'};
+const _tbodyIds = {'painel-geral':'pg-tbody','metas':'metas-tbody','acoes':'acoes-tbody','pontos-controle':'ctrl-tbody','pontos-balanco':'bal-tbody'};
+const _colCounts = {'painel-geral':5,'metas':5,'acoes':5,'pontos-controle':8,'pontos-balanco':8};
+
+function applyTableRender(page) {
+  const rows0 = lastData[page] || [];
+  const ss = selStatus[page];
+  let rows = ss ? rows0.filter(r => r.status === ss) : [...rows0];
+  const st = sortState[page];
+  if (st?.col) rows.sort((a, b) => {
+    const va = a[st.col] ?? '', vb = b[st.col] ?? '';
+    const n = va !== '' && vb !== '' && !isNaN(+va) && !isNaN(+vb);
+    return (n ? +va - +vb : String(va).localeCompare(String(vb), 'pt-BR')) * st.dir;
+  });
+  syncSortHeaders(page);
+  const tbody = document.getElementById(_tbodyIds[page]);
+  if (!tbody) return;
+  tbody.innerHTML = rows.length
+    ? rows.map(r => rowHtml(page, r)).join('')
+    : `<tr><td colspan="${_colCounts[page]}" style="text-align:center;color:#8a9bb5;padding:16px">Sem dados</td></tr>`;
+}
+
+function rowHtml(page, r) {
+  if (page === 'painel-geral') return `<tr>
+    <td>${r.projeto||'—'}</td><td>${r.responsavel||'—'}</td>
+    <td><span class="td-status"><span class="td-dot" style="background:${statusColor(r.status)}"></span>${r.status||'—'}</span></td>
+    <td>${r.unidade||'—'}</td><td style="font-size:10px;color:#5a7190">${shortEixo(r.eixo)}</td></tr>`;
+  if (page === 'metas') return `<tr>
+    <td>${r.meta||'—'}</td><td>${r.responsavel||'—'}</td>
+    <td><span class="td-status"><span class="td-dot" style="background:${statusColor(r.status)}"></span>${r.status||'—'}</span></td>
+    <td>${r.unidade||'—'}</td><td>${fmtDate(r.termino_previsto)}</td></tr>`;
+  if (page === 'acoes') return `<tr>
+    <td>${r.acao||'—'}</td><td>${r.responsavel||'—'}</td>
+    <td>${fmtDate(r.termino_previsto)}</td>
+    <td><span class="td-status"><span class="td-dot" style="background:${statusColor(r.status)}"></span>${r.status||'—'}</span></td>
+    <td>${r.unidade||'—'}</td></tr>`;
+  return `<tr>
+    <td>${r.unidade||'—'}</td><td>${r.encaminhamento||'—'}</td>
+    <td>${r.responsavel||'—'}</td><td style="color:#5a7190">${r.ultimo_comentario||'—'}</td>
+    <td>${fmtDate(r.termino_previsto)}</td>
+    <td><span class="td-status"><span class="td-dot" style="background:${statusColor(r.status)}"></span>${r.status||'—'}</span></td>
+    <td style="font-size:10px">${r.entidades||'—'}</td>
+    <td>${r.url?`<a class="td-link" href="${r.url}" target="_blank">Abrir ↗</a>`:'—'}</td></tr>`;
+}
+
+function syncSortHeaders(page) {
+  const tbl = document.getElementById(_tblIds[page]);
+  if (!tbl) return;
+  const st = sortState[page];
+  tbl.querySelectorAll('.th-sort').forEach(th => {
+    th.classList.remove('asc','desc');
+    if (st?.col === th.dataset.col) th.classList.add(st.dir===1?'asc':'desc');
+  });
+}
+
+function sortCol(page, col) {
+  const s = sortState[page] || {col:null,dir:1};
+  sortState[page] = s.col===col ? (s.dir===1 ? {col,dir:-1} : {col:null,dir:1}) : {col,dir:1};
+  applyTableRender(page);
+}
+
+function clickStatus(page, status) {
+  selStatus[page] = selStatus[page]===status ? null : status;
+  if (page !== curPage) { switchPage(page); }
+  else { applyTableRender(page); }
 }
 
 // ── LOADERS ───────────────────────────────────────────
@@ -644,29 +724,22 @@ async function loadPainelGeral() {
   if (!d) return;
   const tot = d.totais;
 
-  renderDonut('dc-proj', d.projetos_donut, { cutout: '65%' });
-  renderDonut('dc-meta', d.metas_donut,    { cutout: '65%' });
-  renderDonut('dc-acao', d.acoes_donut,    { cutout: '65%' });
-  renderDonut('dc-ctrl', d.ctrl_donut,     { cutout: '65%' });
-  renderDonut('dc-bal',  d.balanco_donut,  { cutout: '65%' });
+  renderDonut('dc-proj', d.projetos_donut, { cutout:'65%', onClickStatus: s => clickStatus('painel-geral', s) });
+  renderDonut('dc-meta', d.metas_donut,    { cutout:'65%', onClickStatus: s => clickStatus('metas', s) });
+  renderDonut('dc-acao', d.acoes_donut,    { cutout:'65%', onClickStatus: s => clickStatus('acoes', s) });
+  renderDonut('dc-ctrl', d.ctrl_donut,     { cutout:'65%', onClickStatus: s => clickStatus('pontos-controle', s) });
+  renderDonut('dc-bal',  d.balanco_donut,  { cutout:'65%', onClickStatus: s => clickStatus('pontos-balanco', s) });
 
   document.getElementById('dc-proj-n').textContent = tot.projetos;
   document.getElementById('dc-meta-n').textContent = tot.metas;
   document.getElementById('dc-acao-n').textContent = tot.acoes;
   document.getElementById('dc-ctrl-n').textContent = tot.ctrl;
   document.getElementById('dc-bal-n').textContent  = tot.balanco;
-
   syncDcCtrSizes();
 
   document.getElementById('pg-count').textContent = d.tabela.length;
-  document.getElementById('pg-tbody').innerHTML = d.tabela.map(r => `
-    <tr>
-      <td>${r.projeto || '—'}</td>
-      <td>${r.responsavel || '—'}</td>
-      <td><span class="td-status"><span class="td-dot" style="background:${statusColor(r.status)}"></span>${r.status || '—'}</span></td>
-      <td>${r.unidade || '—'}</td>
-      <td style="font-size:10px;color:#5a7190">${shortEixo(r.eixo)}</td>
-    </tr>`).join('') || '<tr><td colspan="5" style="text-align:center;color:#8a9bb5;padding:16px">Sem dados</td></tr>';
+  lastData['painel-geral'] = d.tabela;
+  applyTableRender('painel-geral');
 }
 
 async function loadMetas() {
@@ -676,17 +749,10 @@ async function loadMetas() {
   if (s) qs.set('search', s);
   const d = await fetch('/api/metas?' + qs).then(r => r.json()).catch(() => null);
   if (!d) return;
-  renderSidebarDonut(d.donut, 'Metas', d.total);
+  renderSidebarDonut(d.donut, 'Metas', d.total, 'metas');
   document.getElementById('sb-total-label').textContent = 'metas';
-  document.getElementById('metas-count').textContent = d.tabela.length;
-  document.getElementById('metas-tbody').innerHTML = d.tabela.map(r => `
-    <tr>
-      <td>${r.meta || '—'}</td>
-      <td>${r.responsavel || '—'}</td>
-      <td><span class="td-status"><span class="td-dot" style="background:${statusColor(r.status)}"></span>${r.status || '—'}</span></td>
-      <td>${r.unidade || '—'}</td>
-      <td>${fmtDate(r.termino_previsto)}</td>
-    </tr>`).join('') || '<tr><td colspan="5" style="text-align:center;color:#8a9bb5;padding:16px">Sem dados</td></tr>';
+  lastData['metas'] = d.tabela;
+  applyTableRender('metas');
 }
 
 async function loadAcoes() {
@@ -696,17 +762,10 @@ async function loadAcoes() {
   if (s) qs.set('search', s);
   const d = await fetch('/api/acoes?' + qs).then(r => r.json()).catch(() => null);
   if (!d) return;
-  renderSidebarDonut(d.donut, 'Ações', d.total);
+  renderSidebarDonut(d.donut, 'Ações', d.total, 'acoes');
   document.getElementById('sb-total-label').textContent = 'ações';
-  document.getElementById('acoes-count').textContent = d.tabela.length;
-  document.getElementById('acoes-tbody').innerHTML = d.tabela.map(r => `
-    <tr>
-      <td>${r.acao || '—'}</td>
-      <td>${r.responsavel || '—'}</td>
-      <td>${fmtDate(r.termino_previsto)}</td>
-      <td><span class="td-status"><span class="td-dot" style="background:${statusColor(r.status)}"></span>${r.status || '—'}</span></td>
-      <td>${r.unidade || '—'}</td>
-    </tr>`).join('') || '<tr><td colspan="5" style="text-align:center;color:#8a9bb5;padding:16px">Sem dados</td></tr>';
+  lastData['acoes'] = d.tabela;
+  applyTableRender('acoes');
 }
 
 async function loadCtrl() {
@@ -719,10 +778,10 @@ async function loadCtrl() {
   if (s) qs.set('search', s);
   const d = await fetch('/api/pontos?' + qs).then(r => r.json()).catch(() => null);
   if (!d) return;
-  renderSidebarDonut(d.donut, 'Pts. Controle', d.total);
+  renderSidebarDonut(d.donut, 'Pts. Controle', d.total, 'pontos-controle');
   document.getElementById('sb-total-label').textContent = 'registros';
-  document.getElementById('ctrl-count').textContent = d.tabela.length;
-  document.getElementById('ctrl-tbody').innerHTML = renderPontosRows(d.tabela);
+  lastData['pontos-controle'] = d.tabela;
+  applyTableRender('pontos-controle');
 }
 
 async function loadBal() {
@@ -735,10 +794,10 @@ async function loadBal() {
   if (s) qs.set('search', s);
   const d = await fetch('/api/pontos?' + qs).then(r => r.json()).catch(() => null);
   if (!d) return;
-  renderSidebarDonut(d.donut, 'Pts. Balanço', d.total);
+  renderSidebarDonut(d.donut, 'Pts. Balanço', d.total, 'pontos-balanco');
   document.getElementById('sb-total-label').textContent = 'registros';
-  document.getElementById('bal-count').textContent = d.tabela.length;
-  document.getElementById('bal-tbody').innerHTML = renderPontosRows(d.tabela);
+  lastData['pontos-balanco'] = d.tabela;
+  applyTableRender('pontos-balanco');
 }
 
 function renderPontosRows(tabela) {
