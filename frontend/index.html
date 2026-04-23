@@ -86,13 +86,13 @@ body{display:flex;flex-direction:column;background:#eef2f7;font-family:'Segoe UI
 .page-inner{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden;padding:10px 12px;}
 
 /* ── PAINEL GERAL – layout adaptativo ───────────────── */
-/* grade de donuts: 5/6 da altura disponível */
-.pg-grid{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(2,1fr);gap:8px;flex:5;min-height:0;}
+/* grade de donuts: 3/5 da altura disponível */
+.pg-grid{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(2,1fr);gap:8px;flex:3;min-height:0;}
 .pg-cell{background:#fff;border-radius:8px;border:1px solid #d6e1ee;padding:6px 6px 4px;display:flex;flex-direction:column;align-items:center;gap:2px;min-height:0;overflow:hidden;}
 .pg-logo-cell{background:#fff;border-radius:8px;border:1px solid #d6e1ee;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:8px;}
 .pg-logo-cell img{max-width:85%;max-height:85%;object-fit:contain;}
-/* seção da tabela: 1/6 da altura disponível */
-.pg-table-section{flex:1;min-height:0;display:flex;flex-direction:column;padding-top:6px;}
+/* seção da tabela: 2/5 da altura disponível */
+.pg-table-section{flex:2;min-height:0;display:flex;flex-direction:column;padding-top:6px;}
 
 /* Donut card internals — gráfico preenche espaço disponível na célula */
 .dc-title{font-size:10px;font-weight:800;color:#08365f;text-transform:uppercase;letter-spacing:.5px;text-align:center;flex-shrink:0;}
@@ -475,13 +475,15 @@ let debounceTimers = {};
 // ── STATUS COLORS ────────────────────────────────────
 function statusColor(s) {
   const k = (s || '').toLowerCase();
-  if (k.includes('conclu')) return '#1EAA59';
-  if (k.includes('andamento')) return '#2292B7';
-  if (k.includes('atraso') || k.includes('atrasado')) return '#E8B200';
-  if (k.includes('crít') || k.includes('paralisa') || k.includes('impedido')) return '#d01b1e';
-  if (k.includes('nã') || k.includes('pendente')) return '#888888';
-  if (k.includes('cancelado')) return '#666666';
-  const palette = ['#2292B7','#1EAA59','#E8B200','#d01b1e','#9b59b6','#e67e22','#1abc9c'];
+  if (k.includes('conclu'))                              return '#24B722';
+  if (k.includes('andamento'))                           return '#F9E411';
+  if (k.includes('atraso') || k.includes('atrasado'))    return '#F3220E';
+  if (k.includes('não planejado') || k.includes('nao planejado')) return '#964A00';
+  if (k.includes('iniciar') || k.includes('a iniciar'))  return '#999999';
+  if (k.includes('crít') || k.includes('paralisa') || k.includes('impedido')) return '#F3220E';
+  if (k.includes('nã') || k.includes('pendente'))        return '#999999';
+  if (k.includes('cancelado'))                           return '#666666';
+  const palette = ['#F9E411','#24B722','#F3220E','#964A00','#999999','#e67e22','#1abc9c'];
   let h = 0; for (let i = 0; i < k.length; i++) h = (h * 31 + k.charCodeAt(i)) & 0xffff;
   return palette[h % palette.length];
 }
