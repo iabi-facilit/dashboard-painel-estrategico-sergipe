@@ -36,8 +36,9 @@ body{display:flex;flex-direction:column;background:#eef2f7;font-family:'Segoe UI
 .ec-text{flex:1;min-width:0;font-size:12.5px;font-weight:900;text-transform:uppercase;line-height:1.32;letter-spacing:.1px;}
 
 /* Sidebar donut (other pages) */
-.donut-wrap{position:relative;width:220px;height:220px;margin:0 auto 4px;}
-.donut-wrap canvas{position:absolute;top:0;left:0;}
+#sb-donut-section{flex-shrink:0;display:flex;flex-direction:column;align-items:center;padding:8px 10px 6px;}
+.donut-wrap{position:relative;width:min(220px,calc(100% - 20px));height:min(220px,38vh);margin:0 auto 4px;}
+.donut-wrap canvas{position:absolute;top:0;left:0;width:100%!important;height:100%!important;}
 .donut-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;}
 .donut-num{font-size:22px;font-weight:800;color:#08365f;line-height:1;}
 .donut-sub{font-size:9px;color:#8a9bb5;text-transform:uppercase;letter-spacing:.5px;}
@@ -63,7 +64,7 @@ body{display:flex;flex-direction:column;background:#eef2f7;font-family:'Segoe UI
 #chips-unidade .chip{padding:3px 4px;border-radius:20px;font-size:10px;font-weight:500;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border:1.5px solid #8CBBE4;background:#fff;color:#3d5470;letter-spacing:0;}
 
 /* Limpar filtros */
-#btn-limpar{width:calc(100% - 20px);margin:6px 10px 8px;padding:6px 8px;border:none;border-radius:6px;background:#fff;font-size:11px;font-weight:700;color:#5a7190;cursor:pointer;text-align:center;display:flex;align-items:center;justify-content:center;gap:7px;transition:all .12s;letter-spacing:.3px;}
+#btn-limpar{flex-shrink:0;width:calc(100% - 20px);margin:6px 10px 8px;padding:6px 8px;border:none;border-radius:6px;background:#fff;font-size:11px;font-weight:700;color:#5a7190;cursor:pointer;text-align:center;display:flex;align-items:center;justify-content:center;gap:7px;transition:all .12s;letter-spacing:.3px;}
 #btn-limpar img{width:22px;height:22px;object-fit:contain;}
 #btn-limpar:hover{color:#d01b1e;}
 
@@ -900,6 +901,18 @@ function syncDcCtrSizes() {
 
 const _dcRo = new ResizeObserver(syncDcCtrSizes);
 document.querySelectorAll('.dc-rel').forEach(el => _dcRo.observe(el));
+
+// Sidebar donut center number — escala com o canvas
+function syncSbDonutNum() {
+  const wrap = document.querySelector('.donut-wrap');
+  if (!wrap) return;
+  const sz = Math.min(wrap.offsetWidth, wrap.offsetHeight);
+  const num = document.getElementById('sb-total');
+  if (num) num.style.fontSize = Math.max(14, sz * 0.14) + 'px';
+}
+const _sbRo = new ResizeObserver(syncSbDonutNum);
+const _sbWrap = document.querySelector('.donut-wrap');
+if (_sbWrap) _sbRo.observe(_sbWrap);
 
 // ── INIT ──────────────────────────────────────────────
 async function init() {
