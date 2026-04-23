@@ -147,10 +147,11 @@ tbody td{padding:7px 10px;color:#1a2742;vertical-align:top;line-height:1.3;}
 #loading p{color:rgba(255,255,255,.5);font-size:12px;}
 
 /* Filtros acima das tabelas de pontos */
-.pontos-filters{flex-shrink:0;display:flex;flex-direction:column;gap:6px;margin-bottom:10px;}
-.pontos-filter-top{display:flex;align-items:center;gap:8px;flex-wrap:nowrap;}
-.pontos-filter-top .search-input{width:260px;flex-shrink:0;}
-.trim-chips{display:flex;gap:6px;flex-wrap:wrap;flex:1;}
+.pontos-filters{flex-shrink:0;display:flex;align-items:flex-start;gap:10px;margin-bottom:10px;}
+.pontos-search-box{flex-shrink:0;display:flex;align-items:center;gap:8px;}
+.pontos-search-box .search-input{width:240px;}
+.pontos-chips-box{flex:1;display:flex;flex-direction:column;gap:6px;background:#f7f9fc;border:1px solid #d6e1ee;border-radius:6px;padding:8px 10px;}
+.trim-chips{display:flex;gap:6px;flex-wrap:wrap;}
 .chip-trim{padding:5px 18px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;border:1.5px solid #c5d3e3;background:#fff;color:#3d5470;transition:all .12s;white-space:nowrap;}
 .chip-trim:hover{border-color:#08365f;color:#08365f;}
 .chip-trim.active{background:#08365f;border-color:#08365f;color:#fff;}
@@ -398,12 +399,14 @@ tbody td{padding:7px 10px;color:#1a2742;vertical-align:top;line-height:1.3;}
       <div class="page-inner">
         <button class="btn-back" onclick="switchPage('painel-geral')"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="10,3 5,8 10,13"/></svg>Voltar</button>
         <div class="pontos-filters">
-          <div class="pontos-filter-top">
+          <div class="pontos-search-box">
             <input class="search-input" type="text" id="search-ctrl" placeholder="Buscar ponto de controle..." oninput="debounce(loadCtrl,400)()">
             <span class="sec-badge" id="ctrl-count">—</span>
-            <div class="trim-chips" id="chips-trim-ctrl"></div>
           </div>
-          <div class="mes-chips" id="chips-mes-ctrl"></div>
+          <div class="pontos-chips-box">
+            <div class="trim-chips" id="chips-trim-ctrl"></div>
+            <div class="mes-chips" id="chips-mes-ctrl"></div>
+          </div>
         </div>
         <div class="tbl-wrap">
           <table class="tbl-pontos">
@@ -429,12 +432,14 @@ tbody td{padding:7px 10px;color:#1a2742;vertical-align:top;line-height:1.3;}
       <div class="page-inner">
         <button class="btn-back" onclick="switchPage('painel-geral')"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="10,3 5,8 10,13"/></svg>Voltar</button>
         <div class="pontos-filters">
-          <div class="pontos-filter-top">
+          <div class="pontos-search-box">
             <input class="search-input" type="text" id="search-bal" placeholder="Buscar ponto de balanço..." oninput="debounce(loadBal,400)()">
             <span class="sec-badge" id="bal-count">—</span>
-            <div class="trim-chips" id="chips-trim-bal"></div>
           </div>
-          <div class="mes-chips" id="chips-mes-bal"></div>
+          <div class="pontos-chips-box">
+            <div class="trim-chips" id="chips-trim-bal"></div>
+            <div class="mes-chips" id="chips-mes-bal"></div>
+          </div>
         </div>
         </div>
         <div class="tbl-wrap">
