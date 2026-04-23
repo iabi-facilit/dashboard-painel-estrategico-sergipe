@@ -733,10 +733,32 @@ function sortCol(page, col) {
   applyTableRender(page);
 }
 
+function applyPainelGeralDonut(page) {
+  const ld = lastData['painel-geral'];
+  if (!ld) return;
+  const ss = selStatus[page];
+  const map = {
+    metas:             {id:'dc-meta', key:'meta', ctr:'dc-meta-n'},
+    acoes:             {id:'dc-acao', key:'acao', ctr:'dc-acao-n'},
+    'pontos-controle': {id:'dc-ctrl', key:'ctrl', ctr:'dc-ctrl-n'},
+    'pontos-balanco':  {id:'dc-bal',  key:'bal',  ctr:'dc-bal-n'},
+  };
+  const m = map[page];
+  if (!m) return;
+  const data = ld.donuts?.[m.key] || [];
+  const filtered = ss ? data.filter(d => d.status === ss) : data;
+  renderDonut(m.id, filtered, { cutout:'65%', onClickStatus: s => clickStatus(page, s) });
+  document.getElementById(m.ctr).textContent = filtered.reduce((s,d) => s + d.qtd, 0);
+  syncDcCtrSizes();
+}
+
 function clickStatus(page, status) {
   selStatus[page] = selStatus[page]===status ? null : status;
-  if (page !== curPage) { switchPage(page); }
-  else { applyPageRender(page); }
+  if (page === curPage) {
+    applyPageRender(page);
+  } else if (curPage === 'painel-geral') {
+    applyPainelGeralDonut(page);
+  }
 }
 
 // ── LOADERS ───────────────────────────────────────────
