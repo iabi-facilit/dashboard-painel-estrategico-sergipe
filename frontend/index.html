@@ -96,7 +96,6 @@ body{display:flex;flex-direction:column;background:#eef2f7;font-family:'Segoe UI
 
 /* Donut card internals — gráfico preenche espaço disponível na célula */
 .dc-title{font-size:10px;font-weight:800;color:#08365f;text-transform:uppercase;letter-spacing:.5px;text-align:center;flex-shrink:0;}
-.dc-total-badge{background:#eef2f7;border-radius:10px;padding:1px 9px;font-size:10px;font-weight:700;color:#08365f;flex-shrink:0;}
 .dc-rel{position:relative;flex:1;min-height:0;width:100%;}
 .dc-ctr{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:18px;font-weight:800;color:#08365f;pointer-events:none;text-align:center;line-height:1;white-space:nowrap;}
 .dc-ver-link{font-size:9.5px;font-weight:700;color:#1E63A0;cursor:pointer;text-decoration:none;flex-shrink:0;}
@@ -291,14 +290,12 @@ tbody td{padding:7px 10px;color:#1a2742;vertical-align:top;line-height:1.3;}
           <!-- Row 1, Col 1: Projetos -->
           <div class="pg-cell">
             <div class="dc-title">Projetos</div>
-            <span class="dc-total-badge" id="dc-proj-total">—</span>
             <div class="dc-rel"><canvas id="dc-proj"></canvas><div class="dc-ctr" id="dc-proj-n">—</div></div>
           </div>
 
           <!-- Row 1, Col 2: Metas -->
           <div class="pg-cell">
             <div class="dc-title">Metas</div>
-            <span class="dc-total-badge" id="dc-meta-total">—</span>
             <div class="dc-rel"><canvas id="dc-meta"></canvas><div class="dc-ctr" id="dc-meta-n">—</div></div>
             <a class="dc-ver-link" onclick="switchPage('metas')">Ver detalhes ›</a>
           </div>
@@ -311,7 +308,6 @@ tbody td{padding:7px 10px;color:#1a2742;vertical-align:top;line-height:1.3;}
           <!-- Row 2, Col 1: Ações -->
           <div class="pg-cell">
             <div class="dc-title">Ações</div>
-            <span class="dc-total-badge" id="dc-acao-total">—</span>
             <div class="dc-rel"><canvas id="dc-acao"></canvas><div class="dc-ctr" id="dc-acao-n">—</div></div>
             <a class="dc-ver-link" onclick="switchPage('acoes')">Ver detalhes ›</a>
           </div>
@@ -319,7 +315,6 @@ tbody td{padding:7px 10px;color:#1a2742;vertical-align:top;line-height:1.3;}
           <!-- Row 2, Col 2: Pontos de Controle -->
           <div class="pg-cell">
             <div class="dc-title">Pontos de Controle</div>
-            <span class="dc-total-badge" id="dc-ctrl-total">—</span>
             <div class="dc-rel"><canvas id="dc-ctrl"></canvas><div class="dc-ctr" id="dc-ctrl-n">—</div></div>
             <a class="dc-ver-link" onclick="switchPage('pontos-controle')">Ver detalhes ›</a>
           </div>
@@ -327,7 +322,6 @@ tbody td{padding:7px 10px;color:#1a2742;vertical-align:top;line-height:1.3;}
           <!-- Row 2, Col 3: Pontos de Balanço -->
           <div class="pg-cell">
             <div class="dc-title">Pontos de Balanço da Meta</div>
-            <span class="dc-total-badge" id="dc-bal-total">—</span>
             <div class="dc-rel"><canvas id="dc-bal"></canvas><div class="dc-ctr" id="dc-bal-n">—</div></div>
             <a class="dc-ver-link" onclick="switchPage('pontos-balanco')">Ver detalhes ›</a>
           </div>
@@ -647,12 +641,6 @@ async function loadPainelGeral() {
   document.getElementById('dc-ctrl-n').textContent = tot.ctrl;
   document.getElementById('dc-bal-n').textContent  = tot.balanco;
 
-  document.getElementById('dc-proj-total').textContent = tot.projetos + ' total';
-  document.getElementById('dc-meta-total').textContent = tot.metas   + ' total';
-  document.getElementById('dc-acao-total').textContent = tot.acoes   + ' total';
-  document.getElementById('dc-ctrl-total').textContent = tot.ctrl    + ' total';
-  document.getElementById('dc-bal-total').textContent  = tot.balanco + ' total';
-
   syncDcCtrSizes();
 
   document.getElementById('pg-count').textContent = d.tabela.length;
@@ -772,19 +760,12 @@ function debounce(fn, ms) {
 }
 
 // ── AUTO-RESIZE CENTER NUMBERS ────────────────────────
-// O número deve caber dentro do buraco do donut (cutout ~65%)
-// holeDiam ≈ min(h,w) * 0.65 → font limitado por largura (nChars) e altura
+// Todos os números com o mesmo tamanho proporcional ao container
 function syncDcCtrSizes() {
   document.querySelectorAll('.dc-rel').forEach(rel => {
     const ctr = rel.querySelector('.dc-ctr');
     if (!ctr) return;
-    const h = rel.offsetHeight;
-    const w = rel.offsetWidth;
-    const holeDiam = Math.min(h, w) * 0.62;
-    const nChars = Math.max((ctr.textContent || '').trim().length, 1);
-    const byWidth  = holeDiam / (nChars * 0.62);  // cada char ~0.62em
-    const byHeight = holeDiam * 0.48;              // fonte ≤ 48% do diâmetro
-    const size = Math.max(11, Math.min(byWidth, byHeight));
+    const size = Math.max(11, Math.min(rel.offsetHeight, rel.offsetWidth) * 0.18);
     ctr.style.fontSize = size + 'px';
   });
 }
