@@ -575,15 +575,7 @@ function renderSidebarDonut(data, label, total, page) {
   });
   document.getElementById('sb-total').textContent = total;
   document.getElementById('sb-donut-label').textContent = label;
-  const total2 = data.reduce((s, d) => s + d.qtd, 0);
-  document.getElementById('sb-legend').innerHTML = data.slice(0, 8).map(d => {
-    const pct = total2 > 0 ? Math.round(d.qtd / total2 * 100) : 0;
-    return `<div class="leg-item">
-      <div class="leg-dot" style="background:${statusColor(d.status)}"></div>
-      <span class="leg-name">${d.status || '—'}</span>
-      <span class="leg-qty">${d.qtd} (${pct}%)</span>
-    </div>`;
-  }).join('');
+  document.getElementById('sb-legend').innerHTML = '';
 }
 
 // ── CHIPS ─────────────────────────────────────────────
