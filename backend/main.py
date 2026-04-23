@@ -19,12 +19,12 @@ _cache: dict = {}
 _cache_lock = threading.Lock()
 CACHE_TTL = 300
 
+# Eixos estratégicos presentes no banco
 EIXOS = [
     "Eixo 1 - Trabalho e Desenvolvimento Econômico",
     "Eixo 2 - Desenvolvimento Humano e Social",
     "Eixo 3 - Infraestrutura e Sustentabilidade",
     "Eixo 4 - Gestão, Governança e Inovação",
-    "Projeto Estratégico",
 ]
 
 
@@ -75,12 +75,14 @@ def filtros():
     try:
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
+        # Unidades presentes nos projetos estratégicos ativos
         unidades = rows(cur, f"""
-            SELECT DISTINCT acronym
-            FROM {S}.tbl_agencys
-            WHERE acronym IS NOT NULL
-            ORDER BY acronym
-        """)
+            SELECT DISTINCT p.acronym
+            FROM {S}.tbl_planooperativo p
+            JOIN {S}.tbl_acaoprioritaria a ON a.uuid_ = p.fatheruuid
+            WHERE p.ativo = true AND a.tag = ANY(%s) AND p.acronym IS NOT NULL
+            ORDER BY p.acronym
+        """, (EIXOS,))
 
         eixos_db = rows(cur, f"""
             SELECT DISTINCT tag
@@ -95,6 +97,7 @@ def filtros():
                 EXTRACT(YEAR  FROM termino_previsto)::int AS ano
             FROM {S}.tbl_encaminhamentos
             WHERE termino_previsto IS NOT NULL
+              AND EXTRACT(YEAR FROM termino_previsto) BETWEEN 2023 AND 2030
             ORDER BY ano, trimestre
         """)
 
@@ -105,6 +108,7 @@ def filtros():
                 TO_CHAR(DATE_TRUNC('month', termino_previsto), 'Mon/YYYY') AS label
             FROM {S}.tbl_encaminhamentos
             WHERE termino_previsto IS NOT NULL
+              AND EXTRACT(YEAR FROM termino_previsto) BETWEEN 2023 AND 2030
             ORDER BY ano, mes
         """)
 
@@ -131,16 +135,16 @@ def painel_geral(
         return cached
 
     tags = [eixo] if eixo else EIXOS
+    ua = ("AND a.acronym = %s", [unidade]) if unidade else ("", [])
+    up = ("AND p.acronym = %s", [unidade]) if unidade else ("", [])
+    ut = ("AND t.acronym = %s", [unidade]) if unidade else ("", [])
+    ue = ("AND e.sigla  = %s", [unidade]) if unidade else ("", [])
 
     conn = get_conn()
     try:
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-        ua = ["AND a.acronym = %s", [unidade]] if unidade else ["", []]
-        up = ["AND p.acronym = %s", [unidade]] if unidade else ["", []]
-        ut = ["AND t.acronym = %s", [unidade]] if unidade else ["", []]
-        ue = ["AND e.sigla = %s",   [unidade]] if unidade else ["", []]
-
+        # Projetos
         proj_donut = rows(cur, f"""
             SELECT a.status, COUNT(DISTINCT a.uuid_) AS qtd
             FROM {S}.tbl_acaoprioritaria a
@@ -149,6 +153,7 @@ def painel_geral(
             GROUP BY a.status ORDER BY qtd DESC
         """, [tags] + ua[1])
 
+        # Metas
         metas_donut = rows(cur, f"""
             SELECT p.status, COUNT(*) AS qtd
             FROM {S}.tbl_planooperativo p
@@ -157,33 +162,31 @@ def painel_geral(
             GROUP BY p.status ORDER BY qtd DESC
         """, [tags] + up[1])
 
+        # Ações — tbl_tarefa standalone (fatheruuid não cruza com outras tabelas)
         acoes_donut = rows(cur, f"""
             SELECT t.status, COUNT(*) AS qtd
             FROM {S}.tbl_tarefa t
-            JOIN {S}.tbl_planooperativo p ON p.uuid_ = t.fatheruuid AND p.ativo = true
-            JOIN {S}.tbl_acaoprioritaria a ON a.uuid_ = p.fatheruuid
-            WHERE a.tag = ANY(%s) {ut[0]}
+            WHERE t.ativo = true {ut[0]}
             GROUP BY t.status ORDER BY qtd DESC
-        """, [tags] + ut[1])
+        """, ut[1])
 
+        # Pontos de Controle
         ctrl_donut = rows(cur, f"""
             SELECT e.status, COUNT(*) AS qtd
             FROM {S}.tbl_encaminhamentos e
-            JOIN {S}.tbl_planooperativo p ON p.uuid_ = e.uuid_ AND p.ativo = true
-            JOIN {S}.tbl_acaoprioritaria a ON a.uuid_ = p.fatheruuid
-            WHERE e.tipo_encaminhamento = 'DEMAND' AND a.tag = ANY(%s) {ue[0]}
+            WHERE e.tipo_encaminhamento = 'DEMAND' {ue[0]}
             GROUP BY e.status ORDER BY qtd DESC
-        """, [tags] + ue[1])
+        """, ue[1])
 
+        # Pontos de Balanço
         balanco_donut = rows(cur, f"""
             SELECT e.status, COUNT(*) AS qtd
             FROM {S}.tbl_encaminhamentos e
-            JOIN {S}.tbl_planooperativo p ON p.uuid_ = e.uuid_ AND p.ativo = true
-            JOIN {S}.tbl_acaoprioritaria a ON a.uuid_ = p.fatheruuid
-            WHERE e.tipo_encaminhamento = 'INCIDENT' AND a.tag = ANY(%s) {ue[0]}
+            WHERE e.tipo_encaminhamento = 'INCIDENT' {ue[0]}
             GROUP BY e.status ORDER BY qtd DESC
-        """, [tags] + ue[1])
+        """, ue[1])
 
+        # Tabela Projetos
         tabela = rows(cur, f"""
             SELECT DISTINCT ON (a.uuid_)
                 a.entidade AS projeto,
@@ -286,8 +289,10 @@ def acoes(
     try:
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-        w = ["p.ativo = true", "a.tag = ANY(%s)"]
-        params: list = [EIXOS]
+        # tbl_tarefa não possui join funcional com acaoprioritaria
+        # filtro por acronym (unidade) e ativo=true
+        w = ["t.ativo = true"]
+        params: list = []
         if unidade:
             w.append("t.acronym = %s")
             params.append(unidade)
@@ -299,8 +304,6 @@ def acoes(
         donut = rows(cur, f"""
             SELECT t.status, COUNT(*) AS qtd
             FROM {S}.tbl_tarefa t
-            JOIN {S}.tbl_planooperativo p ON p.uuid_ = t.fatheruuid AND p.ativo = true
-            JOIN {S}.tbl_acaoprioritaria a ON a.uuid_ = p.fatheruuid
             {where}
             GROUP BY t.status ORDER BY qtd DESC
         """, params)
@@ -313,10 +316,9 @@ def acoes(
                 t.status,
                 t.acronym AS unidade
             FROM {S}.tbl_tarefa t
-            JOIN {S}.tbl_planooperativo p ON p.uuid_ = t.fatheruuid AND p.ativo = true
-            JOIN {S}.tbl_acaoprioritaria a ON a.uuid_ = p.fatheruuid
             {where}
             ORDER BY t.entidade
+            LIMIT 2000
         """, params)
 
         result = {"donut": donut, "total": sum(r["qtd"] for r in donut), "tabela": tabela}
@@ -343,8 +345,8 @@ def pontos(
     try:
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-        w = ["p.ativo = true", "a.tag = ANY(%s)", "e.tipo_encaminhamento = %s"]
-        params: list = [EIXOS, tipo]
+        w = ["e.tipo_encaminhamento = %s"]
+        params: list = [tipo]
         if unidade:
             w.append("e.sigla = %s")
             params.append(unidade)
@@ -362,8 +364,6 @@ def pontos(
         donut = rows(cur, f"""
             SELECT e.status, COUNT(*) AS qtd
             FROM {S}.tbl_encaminhamentos e
-            JOIN {S}.tbl_planooperativo p ON p.uuid_ = e.uuid_
-            JOIN {S}.tbl_acaoprioritaria a ON a.uuid_ = p.fatheruuid
             {where}
             GROUP BY e.status ORDER BY qtd DESC
         """, params)
@@ -379,10 +379,9 @@ def pontos(
                 e.entidades,
                 e.url
             FROM {S}.tbl_encaminhamentos e
-            JOIN {S}.tbl_planooperativo p ON p.uuid_ = e.uuid_
-            JOIN {S}.tbl_acaoprioritaria a ON a.uuid_ = p.fatheruuid
             {where}
             ORDER BY e.sigla, e.termino_previsto NULLS LAST
+            LIMIT 3000
         """, params)
 
         result = {"donut": donut, "total": sum(r["qtd"] for r in donut), "tabela": tabela}
