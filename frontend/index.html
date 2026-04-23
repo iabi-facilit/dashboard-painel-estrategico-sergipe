@@ -146,8 +146,18 @@ tbody td{padding:7px 10px;color:#1a2742;vertical-align:top;line-height:1.3;}
 @keyframes sp{to{transform:rotate(360deg);}}
 #loading p{color:rgba(255,255,255,.5);font-size:12px;}
 
-/* Trim/mes chips */
-.filter-row{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px;}
+/* Filtros acima das tabelas de pontos */
+.pontos-filters{flex-shrink:0;display:flex;flex-direction:column;gap:6px;margin-bottom:10px;}
+.pontos-filter-top{display:flex;align-items:center;gap:8px;flex-wrap:nowrap;}
+.pontos-filter-top .search-input{width:260px;flex-shrink:0;}
+.trim-chips{display:flex;gap:6px;flex-wrap:wrap;flex:1;}
+.chip-trim{padding:5px 18px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;border:1.5px solid #c5d3e3;background:#fff;color:#3d5470;transition:all .12s;white-space:nowrap;}
+.chip-trim:hover{border-color:#08365f;color:#08365f;}
+.chip-trim.active{background:#08365f;border-color:#08365f;color:#fff;}
+.mes-chips{display:flex;gap:5px;flex-wrap:wrap;}
+.chip-mes{padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;border:1.5px solid #c5d3e3;background:#fff;color:#3d5470;transition:all .12s;white-space:nowrap;}
+.chip-mes:hover{border-color:#08365f;color:#08365f;}
+.chip-mes.active{background:#08365f;border-color:#08365f;color:#fff;}
 </style>
 </head>
 <body>
@@ -259,16 +269,6 @@ tbody td{padding:7px 10px;color:#1a2742;vertical-align:top;line-height:1.3;}
         <span id="sb-unidade-sel" style="font-weight:400;color:#8a9bb5;text-transform:none;letter-spacing:0;font-size:9px;"></span>
       </div>
       <div id="chips-unidade-wrap"><div id="chips-unidade"></div></div>
-    </div>
-
-    <!-- Trimestre/Mês (Pontos pages) -->
-    <div class="sb-section" id="sb-trim-section" style="display:none">
-      <div class="sb-label">Trimestre</div>
-      <div class="chips" id="chips-trimestre"></div>
-    </div>
-    <div class="sb-section" id="sb-mes-section" style="display:none">
-      <div class="sb-label">Mês</div>
-      <div class="chips" id="chips-mes"></div>
     </div>
 
   </div><!-- /sidebar -->
@@ -397,9 +397,13 @@ tbody td{padding:7px 10px;color:#1a2742;vertical-align:top;line-height:1.3;}
     <div class="page" id="page-pontos-controle">
       <div class="page-inner">
         <button class="btn-back" onclick="switchPage('painel-geral')"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="10,3 5,8 10,13"/></svg>Voltar</button>
-        <div class="search-row">
-          <input class="search-input" type="text" id="search-ctrl" placeholder="Buscar ponto de controle..." oninput="debounce(loadCtrl,400)()">
-          <span class="sec-badge" id="ctrl-count">—</span>
+        <div class="pontos-filters">
+          <div class="pontos-filter-top">
+            <input class="search-input" type="text" id="search-ctrl" placeholder="Buscar ponto de controle..." oninput="debounce(loadCtrl,400)()">
+            <span class="sec-badge" id="ctrl-count">—</span>
+            <div class="trim-chips" id="chips-trim-ctrl"></div>
+          </div>
+          <div class="mes-chips" id="chips-mes-ctrl"></div>
         </div>
         <div class="tbl-wrap">
           <table class="tbl-pontos">
@@ -424,9 +428,14 @@ tbody td{padding:7px 10px;color:#1a2742;vertical-align:top;line-height:1.3;}
     <div class="page" id="page-pontos-balanco">
       <div class="page-inner">
         <button class="btn-back" onclick="switchPage('painel-geral')"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="10,3 5,8 10,13"/></svg>Voltar</button>
-        <div class="search-row">
-          <input class="search-input" type="text" id="search-bal" placeholder="Buscar ponto de balanço..." oninput="debounce(loadBal,400)()">
-          <span class="sec-badge" id="bal-count">—</span>
+        <div class="pontos-filters">
+          <div class="pontos-filter-top">
+            <input class="search-input" type="text" id="search-bal" placeholder="Buscar ponto de balanço..." oninput="debounce(loadBal,400)()">
+            <span class="sec-badge" id="bal-count">—</span>
+            <div class="trim-chips" id="chips-trim-bal"></div>
+          </div>
+          <div class="mes-chips" id="chips-mes-bal"></div>
+        </div>
         </div>
         <div class="tbl-wrap">
           <table class="tbl-pontos">
@@ -562,26 +571,28 @@ function selUnidadeFn(v) {
 }
 
 function buildTrimChips() {
-  const el = document.getElementById('chips-trimestre');
-  if (!el) return;
   const items = [...new Set(filtros.trimestres.map(t => `${t.trimestre}`))];
-  el.innerHTML = items.map(v => `
-    <span class="chip ${selTri == v ? 'active' : ''}"
+  const html = items.map(v => `
+    <span class="chip-trim ${selTri == v ? 'active' : ''}"
       onclick="selTri=(selTri=='${v}'?null:'${v}');buildTrimChips();reloadCurrentPage();">
-      ${v}º Tri
+      Trim ${v}
     </span>`).join('');
+  ['chips-trim-ctrl','chips-trim-bal'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.innerHTML = html;
+  });
 }
 
 function buildMesChips() {
-  const el = document.getElementById('chips-mes');
-  if (!el) return;
-  const MESES = ['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const MESES = ['','Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
   const items = [...new Set(filtros.meses.map(m => `${m.mes}`))];
-  el.innerHTML = items.map(v => `
-    <span class="chip ${selMes == v ? 'active' : ''}"
+  const html = items.map(v => `
+    <span class="chip-mes ${selMes == v ? 'active' : ''}"
       onclick="selMes=(selMes=='${v}'?null:'${v}');buildMesChips();reloadCurrentPage();">
       ${MESES[+v] || v}
     </span>`).join('');
+  ['chips-mes-ctrl','chips-mes-bal'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.innerHTML = html;
+  });
 }
 
 // ── NAVIGATION ────────────────────────────────────────
@@ -592,13 +603,10 @@ function switchPage(id) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById(`page-${id}`)?.classList.add('active');
 
-  const isPG     = id === 'painel-geral';
-  const isPontos = id === 'pontos-controle' || id === 'pontos-balanco';
+  const isPG = id === 'painel-geral';
 
-  document.getElementById('sb-eixos').style.display        = isPG ? '' : 'none';
+  document.getElementById('sb-eixos').style.display         = isPG ? '' : 'none';
   document.getElementById('sb-donut-section').style.display = isPG ? 'none' : '';
-  document.getElementById('sb-trim-section').style.display  = isPontos ? '' : 'none';
-  document.getElementById('sb-mes-section').style.display   = isPontos ? '' : 'none';
 
   reloadCurrentPage();
 }
