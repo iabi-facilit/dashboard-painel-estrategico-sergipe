@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Painel Estratégico Geral — Sergipe</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -80,14 +81,14 @@ body{display:flex;flex-direction:column;background:#eef2f7;font-family:'Segoe UI
 /* ── PAINEL GERAL – layout adaptativo ───────────────── */
 /* grade de donuts: 3/5 da altura disponível */
 .pg-grid{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(2,1fr);gap:8px;flex:3;min-height:0;}
-.pg-cell{background:#fff;border-radius:8px;border:1px solid #d6e1ee;padding:6px 6px 4px;display:flex;flex-direction:column;align-items:center;gap:2px;min-height:0;overflow:hidden;}
+.pg-cell{background:#fff;border-radius:8px;border:1px solid #d6e1ee;padding:6px 6px 4px;display:flex;flex-direction:column;align-items:center;gap:2px;min-height:0;overflow:visible;}
 .pg-logo-cell{background:#083D6B;border-radius:8px;overflow:hidden;padding:0;}
 .pg-logo-cell img{width:100%;height:100%;object-fit:cover;display:block;}
 /* seção da tabela: 2/5 da altura disponível */
 .pg-table-section{flex:2;min-height:0;display:flex;flex-direction:column;padding-top:6px;}
 
 /* Donut card internals — gráfico preenche espaço disponível na célula */
-.dc-title{font-size:10px;font-weight:800;color:#08365f;text-transform:uppercase;letter-spacing:.5px;text-align:center;flex-shrink:0;}
+.dc-title{font-size:13px;font-weight:800;color:#1a2742;flex-shrink:0;width:100%;padding:0 2px;}
 .dc-rel{position:relative;flex:1;min-height:0;width:100%;}
 .dc-ctr{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:18px;font-weight:800;color:#08365f;pointer-events:none;text-align:center;line-height:1;white-space:nowrap;}
 .dc-ver-link{font-size:9.5px;font-weight:700;color:#1E63A0;cursor:pointer;text-decoration:none;flex-shrink:0;}
@@ -504,6 +505,9 @@ function fmtDate(v) {
 }
 
 // ── CHARTS ───────────────────────────────────────────
+// Unregister datalabels globally — use only where showLabels:true
+Chart.unregister(ChartDataLabels);
+
 function renderDonut(id, data, opts = {}) {
   const el = document.getElementById(id);
   if (!el) return;
@@ -511,16 +515,38 @@ function renderDonut(id, data, opts = {}) {
   if (charts[id]) { charts[id].destroy(); delete charts[id]; }
   if (!data || !data.length) { ctx.clearRect(0, 0, el.width, el.height); return; }
   const colors = data.map(d => statusColor(d.status));
+  const total = data.reduce((s,d) => s + d.qtd, 0);
+
+  const dlConfig = opts.showLabels ? {
+    anchor: 'end',
+    align: 'end',
+    offset: 8,
+    clip: false,
+    font: { size: 9.5, weight: '600' },
+    color: '#3d5470',
+    formatter: (value) => {
+      const pct = total > 0 ? (value / total * 100).toFixed(1).replace('.', ',') : '0';
+      return `${value} (${pct}%)`;
+    },
+    display: (ctx) => {
+      const pct = total > 0 ? (ctx.dataset.data[ctx.dataIndex] / total * 100) : 0;
+      return pct >= 2.5;
+    }
+  } : { display: false };
+
   charts[id] = new Chart(ctx, {
     type: 'doughnut',
+    plugins: opts.showLabels ? [ChartDataLabels] : [],
     data: { datasets: [{ data: data.map(d => d.qtd), backgroundColor: colors, borderWidth: 1, borderColor: '#fff' }] },
     options: {
       responsive: true,
       maintainAspectRatio: false,
       cutout: opts.cutout || '68%',
+      layout: opts.showLabels ? { padding: { top: 24, bottom: 24, left: 56, right: 56 } } : {},
       plugins: {
         legend: { display: false },
-        tooltip: { callbacks: { label: c => ` ${data[c.dataIndex]?.status}: ${c.raw}` } }
+        tooltip: { callbacks: { label: c => ` ${data[c.dataIndex]?.status}: ${c.raw}` } },
+        datalabels: dlConfig,
       },
       animation: { duration: 350 },
       onClick: opts.onClickStatus ? (e, els) => {
@@ -709,7 +735,7 @@ function applyPageRender(page) {
   const ss = selStatus[page];
   if (page === 'painel-geral') {
     const projData = ss ? (ld.donuts?.proj||[]).filter(d => d.status === ss) : (ld.donuts?.proj||[]);
-    renderDonut('dc-proj', projData, { cutout:'65%', onClickStatus: s => clickStatus('painel-geral', s) });
+    renderDonut('dc-proj', projData, { cutout:'65%', showLabels:true, onClickStatus: s => clickStatus('painel-geral', s) });
     const projTotal = projData.reduce((s,d) => s + d.qtd, 0);
     document.getElementById('dc-proj-n').textContent = projTotal;
     syncDcCtrSizes();
@@ -747,7 +773,7 @@ function applyPainelGeralDonut(page) {
   if (!m) return;
   const data = ld.donuts?.[m.key] || [];
   const filtered = ss ? data.filter(d => d.status === ss) : data;
-  renderDonut(m.id, filtered, { cutout:'65%', onClickStatus: s => clickStatus(page, s) });
+  renderDonut(m.id, filtered, { cutout:'65%', showLabels:true, onClickStatus: s => clickStatus(page, s) });
   document.getElementById(m.ctr).textContent = filtered.reduce((s,d) => s + d.qtd, 0);
   syncDcCtrSizes();
 }
@@ -776,10 +802,10 @@ async function loadPainelGeral() {
     totais: tot
   };
 
-  renderDonut('dc-meta', d.metas_donut, { cutout:'65%', onClickStatus: s => clickStatus('metas', s) });
-  renderDonut('dc-acao', d.acoes_donut, { cutout:'65%', onClickStatus: s => clickStatus('acoes', s) });
-  renderDonut('dc-ctrl', d.ctrl_donut,  { cutout:'65%', onClickStatus: s => clickStatus('pontos-controle', s) });
-  renderDonut('dc-bal',  d.balanco_donut, { cutout:'65%', onClickStatus: s => clickStatus('pontos-balanco', s) });
+  renderDonut('dc-meta', d.metas_donut, { cutout:'65%', showLabels:true, onClickStatus: s => clickStatus('metas', s) });
+  renderDonut('dc-acao', d.acoes_donut, { cutout:'65%', showLabels:true, onClickStatus: s => clickStatus('acoes', s) });
+  renderDonut('dc-ctrl', d.ctrl_donut,  { cutout:'65%', showLabels:true, onClickStatus: s => clickStatus('pontos-controle', s) });
+  renderDonut('dc-bal',  d.balanco_donut, { cutout:'65%', showLabels:true, onClickStatus: s => clickStatus('pontos-balanco', s) });
   document.getElementById('dc-meta-n').textContent = tot.metas;
   document.getElementById('dc-acao-n').textContent = tot.acoes;
   document.getElementById('dc-ctrl-n').textContent = tot.ctrl;
