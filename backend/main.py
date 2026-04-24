@@ -1,11 +1,12 @@
 from fastapi import FastAPI, Query
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-import intersystems_iris.dbapi as iris_db
+import iris
 import os
 import threading
 import time
 import queue
+import re
 from typing import Optional
 
 app = FastAPI()
@@ -16,21 +17,20 @@ DB_NAMESPACE = os.environ.get("DB_NAMESPACE", "SERGIPE")
 DB_USER      = os.environ.get("DB_USER",      "bi-team")
 DB_PASS      = os.environ.get("DB_PASS",      "fG&E2p[#Qb_dm")
 S            = os.environ.get("DB_SCHEMA",    "SQLUser")
+CLIENT_ID    = 202   # GOVSE – Governo do Estado de Sergipe (produção)
 
 # ── CONNECTION POOL ───────────────────────────────────
 class _Pool:
     def __init__(self, minconn=2, maxconn=8):
-        self._kwargs = dict(
-            hostname=DB_HOST, port=DB_PORT,
-            namespace=DB_NAMESPACE,
-            username=DB_USER, password=DB_PASS,
-        )
-        self._q = queue.Queue(maxsize=maxconn)
+        self._dsn  = f"{DB_HOST}:{DB_PORT}/{DB_NAMESPACE}"
+        self._user = DB_USER
+        self._pass = DB_PASS
+        self._q    = queue.Queue(maxsize=maxconn)
         for _ in range(minconn):
             self._q.put(self._new())
 
     def _new(self):
-        return iris_db.connect(**self._kwargs)
+        return iris.connect(self._dsn, self._user, self._pass)
 
     def getconn(self):
         try:
@@ -52,7 +52,7 @@ CACHE_TTL = 300
 
 # ── EIXOS ─────────────────────────────────────────────
 EIXOS_IDS = [101, 102, 103, 104]
-EIXOS_PH  = ",".join(["?"] * len(EIXOS_IDS))   # "?,?,?,?"
+EIXOS_PH  = ",".join(["?"] * len(EIXOS_IDS))
 
 EIXO_TO_TAGID = {
     "Eixo 1 - Trabalho e Desenvolvimento Econômico": 101,
@@ -60,7 +60,6 @@ EIXO_TO_TAGID = {
     "Eixo 3 - Infraestrutura e Sustentabilidade":     103,
     "Eixo 4 - Gestão, Governança e Inovação":         104,
 }
-
 EIXOS = list(EIXO_TO_TAGID.keys())
 
 # ── HELPERS ───────────────────────────────────────────
@@ -97,6 +96,12 @@ def q_trim(field):
         f"ELSE 4 END"
     )
 
+def strip_html(text):
+    """Remove HTML tags from text."""
+    if not text:
+        return text
+    return re.sub(r'<[^>]+>', '', str(text)).strip()
+
 # ── ROUTES ────────────────────────────────────────────
 @app.get("/")
 def index():
@@ -105,6 +110,7 @@ def index():
 @app.get("/api/health")
 def health():
     return {"status": "ok"}
+
 
 @app.get("/api/filtros")
 def filtros():
@@ -117,47 +123,57 @@ def filtros():
     try:
         cur = conn.cursor()
 
+        # Unidades: acronym das agencies com planooperativo ativo vinculado a eixos
         unidades = rows(cur, f"""
-            SELECT DISTINCT p.acronym
-            FROM {S}.tbl_planooperativo p
-            JOIN {S}.tbl_acaoprioritaria a ON a.uuid_ = p.fatheruuid
-            WHERE p.ativo = 'true'
-              AND a.tagid IN ({EIXOS_PH})
-              AND a.ativo = 'true'
-              AND p.acronym IS NOT NULL
-            ORDER BY p.acronym
+            SELECT DISTINCT ag.acronym
+            FROM {S}.planooperativo p
+            JOIN {S}.acaoprioritaria a ON a.uuid_ = p.fatherUuid
+              AND a.ativo = 1 AND a.deleted = 0
+            JOIN {S}.tagtaggablerel ttr ON ttr.ownerUuid = a.uuid_
+              AND ttr.taggableType = 'ACAO_PRIORITARIA'
+            JOIN {S}.agency ag ON ag.agencyId = p.agencyId
+            WHERE p.ativo = 1 AND p.deleted = 0
+              AND ttr.tagId IN ({EIXOS_PH})
+              AND ag.acronym IS NOT NULL
+            ORDER BY ag.acronym
         """, EIXOS_IDS)
 
+        # Eixos: tags 101–104
         eixos_db = rows(cur, f"""
-            SELECT DISTINCT tagid, tag
-            FROM {S}.tbl_acaoprioritaria
-            WHERE tagid IN ({EIXOS_PH}) AND ativo = 'true'
-            ORDER BY tagid
+            SELECT tagId, name
+            FROM {S}.tag
+            WHERE tagId IN ({EIXOS_PH})
+            ORDER BY tagId
         """, EIXOS_IDS)
 
+        # Trimestres: a partir de predictDate dos encaminhamentos
         trimestres = rows(cur, f"""
             SELECT DISTINCT
-                {q_trim('termino_previsto')} AS trimestre,
-                YEAR(termino_previsto) AS ano
-            FROM {S}.tbl_encaminhamentos
-            WHERE termino_previsto IS NOT NULL
-              AND YEAR(termino_previsto) BETWEEN 2023 AND 2030
+                {q_trim('a.predictDate')} AS trimestre,
+                YEAR(a.predictDate) AS ano
+            FROM {S}.assignment a
+            WHERE a.predictDate IS NOT NULL
+              AND a.assignmentTypeValue IN ('DEMAND','INCIDENT')
+              AND a.clientId = ? AND a.deleted = 0 AND a.active_ = 1
+              AND YEAR(a.predictDate) BETWEEN 2023 AND 2030
             ORDER BY ano, trimestre
-        """)
+        """, [CLIENT_ID])
 
         meses = rows(cur, f"""
             SELECT DISTINCT
-                MONTH(termino_previsto) AS mes,
-                YEAR(termino_previsto) AS ano
-            FROM {S}.tbl_encaminhamentos
-            WHERE termino_previsto IS NOT NULL
-              AND YEAR(termino_previsto) BETWEEN 2023 AND 2030
+                MONTH(a.predictDate) AS mes,
+                YEAR(a.predictDate) AS ano
+            FROM {S}.assignment a
+            WHERE a.predictDate IS NOT NULL
+              AND a.assignmentTypeValue IN ('DEMAND','INCIDENT')
+              AND a.clientId = ? AND a.deleted = 0 AND a.active_ = 1
+              AND YEAR(a.predictDate) BETWEEN 2023 AND 2030
             ORDER BY ano, mes
-        """)
+        """, [CLIENT_ID])
 
         result = {
             "unidades": [r["acronym"] for r in unidades],
-            "eixos": [r["tag"] for r in eixos_db] or EIXOS,
+            "eixos": [r["name"] for r in eixos_db] or EIXOS,
             "trimestres": trimestres,
             "meses": meses,
         }
@@ -180,64 +196,113 @@ def painel_geral(
     tagids    = [EIXO_TO_TAGID[eixo]] if eixo and eixo in EIXO_TO_TAGID else EIXOS_IDS
     tagids_ph = ",".join(["?"] * len(tagids))
 
-    ua = ("AND a.acronym = ?", [unidade]) if unidade else ("", [])
-    up = ("AND p.acronym = ?", [unidade]) if unidade else ("", [])
-    ut = ("AND t.acronym = ?", [unidade]) if unidade else ("", [])
-    ue = ("AND e.sigla   = ?", [unidade]) if unidade else ("", [])
+    ua_clause = "AND ag_a.acronym = ?" if unidade else ""
+    up_clause = "AND ag_p.acronym = ?" if unidade else ""
+    ut_clause = "AND ag_t.acronym = ?" if unidade else ""
+    ue_clause = "AND ag_e.acronym = ?" if unidade else ""
+
+    ua = ([unidade] if unidade else [])
+    up = ([unidade] if unidade else [])
+    ut = ([unidade] if unidade else [])
+    ue = ([unidade] if unidade else [])
 
     conn = get_conn()
     try:
         cur = conn.cursor()
 
+        # Projetos (acaoprioritaria) – donut
         proj_donut = rows(cur, f"""
-            SELECT a.status, COUNT(DISTINCT a.uuid_) AS qtd
-            FROM {S}.tbl_acaoprioritaria a
-            JOIN {S}.tbl_planooperativo p ON p.fatheruuid = a.uuid_ AND p.ativo = 'true'
-            WHERE a.tagid IN ({tagids_ph}) AND a.ativo = 'true' {ua[0]}
-            GROUP BY a.status ORDER BY qtd DESC
-        """, tagids + ua[1])
+            SELECT s.nome AS status, COUNT(DISTINCT a.uuid_) AS qtd
+            FROM {S}.acaoprioritaria a
+            JOIN {S}.tagtaggablerel ttr ON ttr.ownerUuid = a.uuid_
+              AND ttr.taggableType = 'ACAO_PRIORITARIA'
+            JOIN {S}.planooperativo p ON p.fatherUuid = a.uuid_
+              AND p.ativo = 1 AND p.deleted = 0
+            JOIN {S}.agency ag_a ON ag_a.agencyId = a.agencyId
+            LEFT JOIN {S}.status s ON s.codigoStatus = a.codigoStatus
+            WHERE a.ativo = 1 AND a.deleted = 0
+              AND ttr.tagId IN ({tagids_ph}) {ua_clause}
+            GROUP BY s.nome ORDER BY qtd DESC
+        """, tagids + ua)
 
+        # Metas (planooperativo) – donut
         metas_donut = rows(cur, f"""
-            SELECT p.status, COUNT(*) AS qtd
-            FROM {S}.tbl_planooperativo p
-            JOIN {S}.tbl_acaoprioritaria a ON a.uuid_ = p.fatheruuid
-            WHERE p.ativo = 'true' AND a.tagid IN ({tagids_ph}) AND a.ativo = 'true' {up[0]}
-            GROUP BY p.status ORDER BY qtd DESC
-        """, tagids + up[1])
+            SELECT s.nome AS status, COUNT(*) AS qtd
+            FROM {S}.planooperativo p
+            JOIN {S}.acaoprioritaria a ON a.uuid_ = p.fatherUuid
+              AND a.ativo = 1 AND a.deleted = 0
+            JOIN {S}.tagtaggablerel ttr ON ttr.ownerUuid = a.uuid_
+              AND ttr.taggableType = 'ACAO_PRIORITARIA'
+            JOIN {S}.agency ag_p ON ag_p.agencyId = p.agencyId
+            LEFT JOIN {S}.status s ON s.codigoStatus = p.codigoStatus
+            WHERE p.ativo = 1 AND p.deleted = 0
+              AND ttr.tagId IN ({tagids_ph}) {up_clause}
+            GROUP BY s.nome ORDER BY qtd DESC
+        """, tagids + up)
 
+        # Ações (tarefa) – donut
         acoes_donut = rows(cur, f"""
-            SELECT t.status, COUNT(*) AS qtd
-            FROM {S}.tbl_tarefa t
-            WHERE t.ativo = 'true' {ut[0]}
-            GROUP BY t.status ORDER BY qtd DESC
-        """, ut[1])
+            SELECT s.nome AS status, COUNT(*) AS qtd
+            FROM {S}.tarefa t
+            JOIN {S}.agency ag_t ON ag_t.agencyId = t.agencyId
+            LEFT JOIN {S}.status s ON s.codigoStatus = t.codigoStatus
+            WHERE t.ativo = 1 AND t.deleted = 0 {ut_clause}
+            GROUP BY s.nome ORDER BY qtd DESC
+        """, ut)
 
+        # Pontos de Controle (DEMAND) – donut
         ctrl_donut = rows(cur, f"""
-            SELECT e.status, COUNT(*) AS qtd
-            FROM {S}.tbl_encaminhamentos e
-            WHERE e.tipo_encaminhamento = 'DEMAND' {ue[0]}
-            GROUP BY e.status ORDER BY qtd DESC
-        """, ue[1])
+            SELECT s.nome AS status, COUNT(DISTINCT a.assignmentId) AS qtd
+            FROM {S}.assignment a
+            LEFT JOIN {S}.status s ON s.codigoStatus = a.statusId
+            LEFT JOIN (
+              SELECT assignmentId, MAX(historyId) AS maxH
+              FROM {S}.assignment_history GROUP BY assignmentId
+            ) lh ON lh.assignmentId = a.assignmentId
+            LEFT JOIN {S}.assignment_agency_history aah ON aah.historyId = lh.maxH
+            LEFT JOIN {S}.agency ag_e ON ag_e.agencyId = aah.agencyId
+            WHERE a.assignmentTypeValue = 'DEMAND'
+              AND a.clientId = ? AND a.deleted = 0 AND a.active_ = 1 {ue_clause}
+            GROUP BY s.nome ORDER BY qtd DESC
+        """, [CLIENT_ID] + ue)
 
+        # Pontos de Balanço (INCIDENT) – donut
         balanco_donut = rows(cur, f"""
-            SELECT e.status, COUNT(*) AS qtd
-            FROM {S}.tbl_encaminhamentos e
-            WHERE e.tipo_encaminhamento = 'INCIDENT' {ue[0]}
-            GROUP BY e.status ORDER BY qtd DESC
-        """, ue[1])
+            SELECT s.nome AS status, COUNT(DISTINCT a.assignmentId) AS qtd
+            FROM {S}.assignment a
+            LEFT JOIN {S}.status s ON s.codigoStatus = a.statusId
+            LEFT JOIN (
+              SELECT assignmentId, MAX(historyId) AS maxH
+              FROM {S}.assignment_history GROUP BY assignmentId
+            ) lh ON lh.assignmentId = a.assignmentId
+            LEFT JOIN {S}.assignment_agency_history aah ON aah.historyId = lh.maxH
+            LEFT JOIN {S}.agency ag_e ON ag_e.agencyId = aah.agencyId
+            WHERE a.assignmentTypeValue = 'INCIDENT'
+              AND a.clientId = ? AND a.deleted = 0 AND a.active_ = 1 {ue_clause}
+            GROUP BY s.nome ORDER BY qtd DESC
+        """, [CLIENT_ID] + ue)
 
+        # Tabela de projetos
         tabela = rows(cur, f"""
             SELECT DISTINCT
-                a.entidade AS projeto,
-                a.responsavel,
-                a.status,
-                a.acronym  AS unidade,
-                a.tag      AS eixo
-            FROM {S}.tbl_acaoprioritaria a
-            JOIN {S}.tbl_planooperativo p ON p.fatheruuid = a.uuid_ AND p.ativo = 'true'
-            WHERE a.tagid IN ({tagids_ph}) AND a.ativo = 'true' {ua[0]}
-            ORDER BY a.entidade
-        """, tagids + ua[1])
+                a.nome       AS projeto,
+                r.nome       AS responsavel,
+                s.nome       AS status,
+                ag_a.acronym AS unidade,
+                t.name       AS eixo
+            FROM {S}.acaoprioritaria a
+            JOIN {S}.tagtaggablerel ttr ON ttr.ownerUuid = a.uuid_
+              AND ttr.taggableType = 'ACAO_PRIORITARIA'
+            JOIN {S}.tag t ON t.tagId = ttr.tagId
+            JOIN {S}.planooperativo p ON p.fatherUuid = a.uuid_
+              AND p.ativo = 1 AND p.deleted = 0
+            JOIN {S}.agency ag_a ON ag_a.agencyId = a.agencyId
+            LEFT JOIN {S}.responsavel r ON r.responsavelId = a.responsavelId
+            LEFT JOIN {S}.status s ON s.codigoStatus = a.codigoStatus
+            WHERE a.ativo = 1 AND a.deleted = 0
+              AND ttr.tagId IN ({tagids_ph}) {ua_clause}
+            ORDER BY a.nome
+        """, tagids + ua)
 
         def total(d): return sum(r["qtd"] for r in d)
 
@@ -276,35 +341,47 @@ def metas(
     try:
         cur = conn.cursor()
 
-        w = [f"p.ativo = 'true'", f"a.tagid IN ({EIXOS_PH})", "a.ativo = 'true'"]
+        w      = ["p.ativo = 1", "p.deleted = 0",
+                  "a.ativo = 1", "a.deleted = 0",
+                  f"ttr.tagId IN ({EIXOS_PH})"]
         params: list = list(EIXOS_IDS)
+
         if unidade:
-            w.append("p.acronym = ?")
+            w.append("ag.acronym = ?")
             params.append(unidade)
         if search:
-            w.append("UPPER(p.entidade) LIKE UPPER(?)")
+            w.append("UPPER(p.nome) LIKE UPPER(?)")
             params.append(f"%{search}%")
         where = "WHERE " + " AND ".join(w)
 
         donut = rows(cur, f"""
-            SELECT p.status, COUNT(*) AS qtd
-            FROM {S}.tbl_planooperativo p
-            JOIN {S}.tbl_acaoprioritaria a ON a.uuid_ = p.fatheruuid
+            SELECT s.nome AS status, COUNT(*) AS qtd
+            FROM {S}.planooperativo p
+            JOIN {S}.acaoprioritaria a ON a.uuid_ = p.fatherUuid
+            JOIN {S}.tagtaggablerel ttr ON ttr.ownerUuid = a.uuid_
+              AND ttr.taggableType = 'ACAO_PRIORITARIA'
+            JOIN {S}.agency ag ON ag.agencyId = p.agencyId
+            LEFT JOIN {S}.status s ON s.codigoStatus = p.codigoStatus
             {where}
-            GROUP BY p.status ORDER BY qtd DESC
+            GROUP BY s.nome ORDER BY qtd DESC
         """, params)
 
         tabela = rows(cur, f"""
             SELECT
-                p.entidade       AS meta,
-                p.responsavel,
-                p.status,
-                p.acronym        AS unidade,
+                p.nome            AS meta,
+                r.nome            AS responsavel,
+                s.nome            AS status,
+                ag.acronym        AS unidade,
                 p.terminoprevisto AS termino_previsto
-            FROM {S}.tbl_planooperativo p
-            JOIN {S}.tbl_acaoprioritaria a ON a.uuid_ = p.fatheruuid
+            FROM {S}.planooperativo p
+            JOIN {S}.acaoprioritaria a ON a.uuid_ = p.fatherUuid
+            JOIN {S}.tagtaggablerel ttr ON ttr.ownerUuid = a.uuid_
+              AND ttr.taggableType = 'ACAO_PRIORITARIA'
+            JOIN {S}.agency ag ON ag.agencyId = p.agencyId
+            LEFT JOIN {S}.responsavel r ON r.responsavelId = p.responsavelId
+            LEFT JOIN {S}.status s ON s.codigoStatus = p.codigoStatus
             {where}
-            ORDER BY p.entidade
+            ORDER BY p.nome
         """, params)
 
         result = {"donut": donut, "total": sum(r["qtd"] for r in donut), "tabela": tabela}
@@ -328,33 +405,38 @@ def acoes(
     try:
         cur = conn.cursor()
 
-        w = ["t.ativo = 'true'"]
+        w      = ["t.ativo = 1", "t.deleted = 0"]
         params: list = []
         if unidade:
-            w.append("t.acronym = ?")
+            w.append("ag.acronym = ?")
             params.append(unidade)
         if search:
-            w.append("UPPER(t.entidade) LIKE UPPER(?)")
+            w.append("UPPER(t.nome) LIKE UPPER(?)")
             params.append(f"%{search}%")
         where = "WHERE " + " AND ".join(w)
 
         donut = rows(cur, f"""
-            SELECT t.status, COUNT(*) AS qtd
-            FROM {S}.tbl_tarefa t
+            SELECT s.nome AS status, COUNT(*) AS qtd
+            FROM {S}.tarefa t
+            JOIN {S}.agency ag ON ag.agencyId = t.agencyId
+            LEFT JOIN {S}.status s ON s.codigoStatus = t.codigoStatus
             {where}
-            GROUP BY t.status ORDER BY qtd DESC
+            GROUP BY s.nome ORDER BY qtd DESC
         """, params)
 
         tabela = rows(cur, f"""
             SELECT TOP 2000
-                t.entidade        AS acao,
-                t.responsavel,
+                t.nome            AS acao,
+                r.nome            AS responsavel,
                 t.terminoprevisto AS termino_previsto,
-                t.status,
-                t.acronym         AS unidade
-            FROM {S}.tbl_tarefa t
+                s.nome            AS status,
+                ag.acronym        AS unidade
+            FROM {S}.tarefa t
+            JOIN {S}.agency ag ON ag.agencyId = t.agencyId
+            LEFT JOIN {S}.responsavel r ON r.responsavelId = t.responsavelId
+            LEFT JOIN {S}.status s ON s.codigoStatus = t.codigoStatus
             {where}
-            ORDER BY t.entidade
+            ORDER BY t.nome
         """, params)
 
         result = {"donut": donut, "total": sum(r["qtd"] for r in donut), "tabela": tabela}
@@ -381,43 +463,68 @@ def pontos(
     try:
         cur = conn.cursor()
 
-        w = ["e.tipo_encaminhamento = ?"]
-        params: list = [tipo]
+        w      = ["a.assignmentTypeValue = ?", "a.clientId = ?",
+                  "a.deleted = 0", "a.active_ = 1"]
+        params: list = [tipo, CLIENT_ID]
+
         if unidade:
-            w.append("e.sigla = ?")
+            w.append("ag_e.acronym = ?")
             params.append(unidade)
         if trimestre:
-            w.append(f"{q_trim('e.termino_previsto')} = ?")
+            w.append(f"{q_trim('a.predictDate')} = ?")
             params.append(trimestre)
         if mes:
-            w.append("MONTH(e.termino_previsto) = ?")
+            w.append("MONTH(a.predictDate) = ?")
             params.append(mes)
         if search:
-            w.append("UPPER(e.encaminhamento) LIKE UPPER(?)")
+            w.append("UPPER(a.text_) LIKE UPPER(?)")
             params.append(f"%{search}%")
         where = "WHERE " + " AND ".join(w)
 
+        # Sub-select para agency via latest history (evita linhas duplicadas)
+        agency_join = f"""
+            LEFT JOIN (
+              SELECT assignmentId, MAX(historyId) AS maxH
+              FROM {S}.assignment_history GROUP BY assignmentId
+            ) lh ON lh.assignmentId = a.assignmentId
+            LEFT JOIN {S}.assignment_agency_history aah ON aah.historyId = lh.maxH
+            LEFT JOIN {S}.agency ag_e ON ag_e.agencyId = aah.agencyId
+        """
+
         donut = rows(cur, f"""
-            SELECT e.status, COUNT(*) AS qtd
-            FROM {S}.tbl_encaminhamentos e
+            SELECT s.nome AS status, COUNT(DISTINCT a.assignmentId) AS qtd
+            FROM {S}.assignment a
+            LEFT JOIN {S}.status s ON s.codigoStatus = a.statusId
+            {agency_join}
             {where}
-            GROUP BY e.status ORDER BY qtd DESC
+            GROUP BY s.nome ORDER BY qtd DESC
         """, params)
 
         tabela = rows(cur, f"""
             SELECT TOP 3000
-                e.sigla           AS unidade,
-                e.encaminhamento,
-                e.responsavel,
-                e.ultimo_comentario,
-                e.termino_previsto,
-                e.status,
-                e.entidades,
-                e.url
-            FROM {S}.tbl_encaminhamentos e
+                ag_e.acronym                AS sigla,
+                a.text_                     AS encaminhamento,
+                r.nome                      AS responsavel,
+                ahx.description             AS ultimo_comentario,
+                CAST(a.predictDate AS DATE) AS termino_previsto,
+                s.nome                      AS status,
+                aeh.name                    AS entidades,
+                a.uuid_                     AS url
+            FROM {S}.assignment a
+            LEFT JOIN {S}.status s ON s.codigoStatus = a.statusId
+            LEFT JOIN {S}.assignment_engager_rel er ON er.assignmentId = a.assignmentId
+              AND er.type_ = 'RESPONSAVEL' AND er.main = 1
+            LEFT JOIN {S}.responsavel r ON r.uuid_ = er.referenceUuid
+            {agency_join}
+            LEFT JOIN {S}.assignment_history ahx ON ahx.historyId = lh.maxH
+            LEFT JOIN {S}.assignment_entity_history aeh ON aeh.historyId = lh.maxH
             {where}
-            ORDER BY e.sigla, e.termino_previsto
+            ORDER BY ag_e.acronym, a.predictDate
         """, params)
+
+        # Remover HTML do campo encaminhamento
+        for row in tabela:
+            row["encaminhamento"] = strip_html(row.get("encaminhamento") or "")
 
         result = {"donut": donut, "total": sum(r["qtd"] for r in donut), "tabela": tabela}
         cache_set(key, result)
