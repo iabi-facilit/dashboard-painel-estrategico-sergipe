@@ -123,20 +123,19 @@ def filtros():
     try:
         cur = conn.cursor()
 
-        # Unidades: acronym das agencies com planooperativo ativo vinculado a eixos
+        # Unidades: acronym das agencies com acaoprioritaria ativa nos eixos
         unidades = rows(cur, f"""
             SELECT DISTINCT ag.acronym
-            FROM {S}.planooperativo p
-            JOIN {S}.acaoprioritaria a ON a.uuid_ = p.fatherUuid
-              AND a.ativo = 1 AND a.deleted = 0
-            JOIN {S}.tagtaggablerel ttr ON ttr.ownerUuid = a.uuid_
-              AND ttr.taggableType = 'ACAO_PRIORITARIA'
-            JOIN {S}.agency ag ON ag.agencyId = p.agencyId
-            WHERE p.ativo = 1 AND p.deleted = 0
-              AND ttr.tagId IN ({EIXOS_PH})
+            FROM {S}.acaoprioritaria a
+            LEFT JOIN {S}.tagtaggablerel ttr ON ttr.ownerUuid = a.uuid_
+            LEFT JOIN {S}.tag t ON t.tagId = ttr.tagId AND t.active_ = 1
+            LEFT JOIN {S}.agency ag ON ag.agencyId = a.agencyId
+            WHERE a.clientId = ? AND a.systemManagedChild = 0
+              AND a.ativo = 1 AND a.ano IN ('2025','2026')
+              AND t.tagId IN ({EIXOS_PH})
               AND ag.acronym IS NOT NULL
             ORDER BY ag.acronym
-        """, EIXOS_IDS)
+        """, [CLIENT_ID] + EIXOS_IDS)
 
         # Eixos: tags 101–104
         eixos_db = rows(cur, f"""
@@ -210,35 +209,35 @@ def painel_geral(
     try:
         cur = conn.cursor()
 
-        # Projetos (acaoprioritaria) – donut
+        # Projetos (acaoprioritaria N2) – donut
         proj_donut = rows(cur, f"""
             SELECT s.nome AS status, COUNT(DISTINCT a.uuid_) AS qtd
             FROM {S}.acaoprioritaria a
-            JOIN {S}.tagtaggablerel ttr ON ttr.ownerUuid = a.uuid_
-              AND ttr.taggableType = 'ACAO_PRIORITARIA'
-            JOIN {S}.planooperativo p ON p.fatherUuid = a.uuid_
-              AND p.ativo = 1 AND p.deleted = 0
-            JOIN {S}.agency ag_a ON ag_a.agencyId = a.agencyId
+            LEFT JOIN {S}.tagtaggablerel ttr ON ttr.ownerUuid = a.uuid_
+            LEFT JOIN {S}.tag t ON t.tagId = ttr.tagId AND t.active_ = 1
+            LEFT JOIN {S}.agency ag_a ON ag_a.agencyId = a.agencyId
             LEFT JOIN {S}.status s ON s.codigoStatus = a.codigoStatus
-            WHERE a.ativo = 1 AND a.deleted = 0
-              AND ttr.tagId IN ({tagids_ph}) {ua_clause}
+            WHERE a.clientId = ? AND a.systemManagedChild = 0
+              AND a.ativo = 1 AND a.ano IN ('2025','2026')
+              AND t.tagId IN ({tagids_ph}) {ua_clause}
             GROUP BY s.nome ORDER BY qtd DESC
-        """, tagids + ua)
+        """, [CLIENT_ID] + tagids + ua)
 
-        # Metas (planooperativo) – donut
+        # Metas (planooperativo N3) – donut — usa N2 como pai com filtros corretos
         metas_donut = rows(cur, f"""
             SELECT s.nome AS status, COUNT(*) AS qtd
             FROM {S}.planooperativo p
             JOIN {S}.acaoprioritaria a ON a.uuid_ = p.fatherUuid
-              AND a.ativo = 1 AND a.deleted = 0
-            JOIN {S}.tagtaggablerel ttr ON ttr.ownerUuid = a.uuid_
-              AND ttr.taggableType = 'ACAO_PRIORITARIA'
-            JOIN {S}.agency ag_p ON ag_p.agencyId = p.agencyId
+              AND a.clientId = ? AND a.systemManagedChild = 0
+              AND a.ativo = 1 AND a.ano IN ('2025','2026')
+            LEFT JOIN {S}.tagtaggablerel ttr ON ttr.ownerUuid = a.uuid_
+            LEFT JOIN {S}.tag t ON t.tagId = ttr.tagId AND t.active_ = 1
+            LEFT JOIN {S}.agency ag_p ON ag_p.agencyId = p.agencyId
             LEFT JOIN {S}.status s ON s.codigoStatus = p.codigoStatus
-            WHERE p.ativo = 1 AND p.deleted = 0
-              AND ttr.tagId IN ({tagids_ph}) {up_clause}
+            WHERE p.ativo = 1
+              AND t.tagId IN ({tagids_ph}) {up_clause}
             GROUP BY s.nome ORDER BY qtd DESC
-        """, tagids + up)
+        """, [CLIENT_ID] + tagids + up)
 
         # Ações (tarefa) – donut
         acoes_donut = rows(cur, f"""
@@ -282,27 +281,44 @@ def painel_geral(
             GROUP BY s.nome ORDER BY qtd DESC
         """, [CLIENT_ID] + ue)
 
-        # Tabela de projetos
+        # Tabela de projetos (N2 – campos completos)
         tabela = rows(cur, f"""
-            SELECT DISTINCT
-                a.nome       AS projeto,
-                r.nome       AS responsavel,
-                s.nome       AS status,
-                ag_a.acronym AS unidade,
-                t.name       AS eixo
+            SELECT
+                a.codigoacaoprioritaria,
+                a.nome              AS entidade,
+                a.ano,
+                a.descricao,
+                a.inicioprevisto,
+                a.iniciorealizado,
+                a.terminoprevisto,
+                a.terminorealizado,
+                s.codigoStatus      AS codigo_status,
+                s.nome              AS status,
+                ag_a.agencyId,
+                ag_a.name           AS agency,
+                ag_a.acronym,
+                a.modifiedDate,
+                a.createDate,
+                a.uuid_,
+                a.originUuid,
+                a.percentualConclusao,
+                a.responsavelId,
+                r.nome              AS responsavel,
+                a.fatherUuid,
+                t.tagId,
+                t.name              AS tag,
+                a.ativo
             FROM {S}.acaoprioritaria a
-            JOIN {S}.tagtaggablerel ttr ON ttr.ownerUuid = a.uuid_
-              AND ttr.taggableType = 'ACAO_PRIORITARIA'
-            JOIN {S}.tag t ON t.tagId = ttr.tagId
-            JOIN {S}.planooperativo p ON p.fatherUuid = a.uuid_
-              AND p.ativo = 1 AND p.deleted = 0
-            JOIN {S}.agency ag_a ON ag_a.agencyId = a.agencyId
+            LEFT JOIN {S}.tagtaggablerel ttr ON ttr.ownerUuid = a.uuid_
+            LEFT JOIN {S}.tag t ON t.tagId = ttr.tagId AND t.active_ = 1
+            LEFT JOIN {S}.agency ag_a ON ag_a.agencyId = a.agencyId
             LEFT JOIN {S}.responsavel r ON r.responsavelId = a.responsavelId
             LEFT JOIN {S}.status s ON s.codigoStatus = a.codigoStatus
-            WHERE a.ativo = 1 AND a.deleted = 0
-              AND ttr.tagId IN ({tagids_ph}) {ua_clause}
+            WHERE a.clientId = ? AND a.systemManagedChild = 0
+              AND a.ativo = 1 AND a.ano IN ('2025','2026')
+              AND t.tagId IN ({tagids_ph}) {ua_clause}
             ORDER BY a.nome
-        """, tagids + ua)
+        """, [CLIENT_ID] + tagids + ua)
 
         def total(d): return sum(r["qtd"] for r in d)
 
@@ -341,10 +357,17 @@ def metas(
     try:
         cur = conn.cursor()
 
-        w      = ["p.ativo = 1", "p.deleted = 0",
-                  "a.ativo = 1", "a.deleted = 0",
-                  f"ttr.tagId IN ({EIXOS_PH})"]
-        params: list = list(EIXOS_IDS)
+        # N2 base conditions (pai dos planos)
+        n2_join = f"""
+            JOIN {S}.acaoprioritaria a ON a.uuid_ = p.fatherUuid
+              AND a.clientId = ? AND a.systemManagedChild = 0
+              AND a.ativo = 1 AND a.ano IN ('2025','2026')
+            LEFT JOIN {S}.tagtaggablerel ttr ON ttr.ownerUuid = a.uuid_
+            LEFT JOIN {S}.tag t ON t.tagId = ttr.tagId AND t.active_ = 1
+        """
+
+        w      = ["p.ativo = 1", f"t.tagId IN ({EIXOS_PH})"]
+        params: list = [CLIENT_ID] + list(EIXOS_IDS)
 
         if unidade:
             w.append("ag.acronym = ?")
@@ -357,10 +380,8 @@ def metas(
         donut = rows(cur, f"""
             SELECT s.nome AS status, COUNT(*) AS qtd
             FROM {S}.planooperativo p
-            JOIN {S}.acaoprioritaria a ON a.uuid_ = p.fatherUuid
-            JOIN {S}.tagtaggablerel ttr ON ttr.ownerUuid = a.uuid_
-              AND ttr.taggableType = 'ACAO_PRIORITARIA'
-            JOIN {S}.agency ag ON ag.agencyId = p.agencyId
+            {n2_join}
+            LEFT JOIN {S}.agency ag ON ag.agencyId = p.agencyId
             LEFT JOIN {S}.status s ON s.codigoStatus = p.codigoStatus
             {where}
             GROUP BY s.nome ORDER BY qtd DESC
@@ -374,10 +395,8 @@ def metas(
                 ag.acronym        AS unidade,
                 p.terminoprevisto AS termino_previsto
             FROM {S}.planooperativo p
-            JOIN {S}.acaoprioritaria a ON a.uuid_ = p.fatherUuid
-            JOIN {S}.tagtaggablerel ttr ON ttr.ownerUuid = a.uuid_
-              AND ttr.taggableType = 'ACAO_PRIORITARIA'
-            JOIN {S}.agency ag ON ag.agencyId = p.agencyId
+            {n2_join}
+            LEFT JOIN {S}.agency ag ON ag.agencyId = p.agencyId
             LEFT JOIN {S}.responsavel r ON r.responsavelId = p.responsavelId
             LEFT JOIN {S}.status s ON s.codigoStatus = p.codigoStatus
             {where}
