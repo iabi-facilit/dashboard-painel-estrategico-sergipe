@@ -223,19 +223,23 @@ def painel_geral(
             GROUP BY s.nome ORDER BY qtd DESC
         """, [CLIENT_ID] + tagids + ua)
 
-        # Metas (planooperativo N3) – donut — usa N2 como pai com filtros corretos
+        # Metas (planooperativo N3) – donut com tag 304 no N3
         metas_donut = rows(cur, f"""
             SELECT s.nome AS status, COUNT(*) AS qtd
             FROM {S}.planooperativo p
             JOIN {S}.acaoprioritaria a ON a.uuid_ = p.fatherUuid
               AND a.clientId = ? AND a.systemManagedChild = 0
               AND a.ativo = 1 AND a.ano IN ('2025','2026')
-            LEFT JOIN {S}.tagtaggablerel ttr ON ttr.ownerUuid = a.uuid_
-            LEFT JOIN {S}.tag t ON t.tagId = ttr.tagId AND t.active_ = 1
+            LEFT JOIN {S}.tagtaggablerel ttr_n2 ON ttr_n2.ownerUuid = a.uuid_
+            LEFT JOIN {S}.tag t_n2 ON t_n2.tagId = ttr_n2.tagId AND t_n2.active_ = 1
+            LEFT JOIN {S}.tagtaggablerel ttr_n3 ON ttr_n3.ownerUuid = p.uuid_
+              AND ttr_n3.taggableType = 'PLANO_OPERATIVO'
+            LEFT JOIN {S}.tag t_n3 ON t_n3.tagId = ttr_n3.tagId AND t_n3.active_ = 1
             LEFT JOIN {S}.agency ag_p ON ag_p.agencyId = p.agencyId
             LEFT JOIN {S}.status s ON s.codigoStatus = p.codigoStatus
             WHERE p.ativo = 1
-              AND t.tagId IN ({tagids_ph}) {up_clause}
+              AND t_n2.tagId IN ({tagids_ph})
+              AND t_n3.tagId = 304 {up_clause}
             GROUP BY s.nome ORDER BY qtd DESC
         """, [CLIENT_ID] + tagids + up)
 
@@ -357,16 +361,22 @@ def metas(
     try:
         cur = conn.cursor()
 
-        # N2 base conditions (pai dos planos)
+        # INNER JOIN com N2 aplicando filtros corretos
         n2_join = f"""
             JOIN {S}.acaoprioritaria a ON a.uuid_ = p.fatherUuid
               AND a.clientId = ? AND a.systemManagedChild = 0
               AND a.ativo = 1 AND a.ano IN ('2025','2026')
-            LEFT JOIN {S}.tagtaggablerel ttr ON ttr.ownerUuid = a.uuid_
-            LEFT JOIN {S}.tag t ON t.tagId = ttr.tagId AND t.active_ = 1
+            LEFT JOIN {S}.tagtaggablerel ttr_n2 ON ttr_n2.ownerUuid = a.uuid_
+            LEFT JOIN {S}.tag t_n2 ON t_n2.tagId = ttr_n2.tagId AND t_n2.active_ = 1
+        """
+        # Tag 304 (Projeto Estratégico) no próprio N3
+        n3_tag_join = f"""
+            LEFT JOIN {S}.tagtaggablerel ttr_n3 ON ttr_n3.ownerUuid = p.uuid_
+              AND ttr_n3.taggableType = 'PLANO_OPERATIVO'
+            LEFT JOIN {S}.tag t_n3 ON t_n3.tagId = ttr_n3.tagId AND t_n3.active_ = 1
         """
 
-        w      = ["p.ativo = 1", f"t.tagId IN ({EIXOS_PH})"]
+        w      = ["p.ativo = 1", f"t_n2.tagId IN ({EIXOS_PH})", "t_n3.tagId = 304"]
         params: list = [CLIENT_ID] + list(EIXOS_IDS)
 
         if unidade:
@@ -381,6 +391,7 @@ def metas(
             SELECT s.nome AS status, COUNT(*) AS qtd
             FROM {S}.planooperativo p
             {n2_join}
+            {n3_tag_join}
             LEFT JOIN {S}.agency ag ON ag.agencyId = p.agencyId
             LEFT JOIN {S}.status s ON s.codigoStatus = p.codigoStatus
             {where}
@@ -389,16 +400,36 @@ def metas(
 
         tabela = rows(cur, f"""
             SELECT
-                p.nome            AS meta,
-                r.nome            AS responsavel,
-                s.nome            AS status,
-                ag.acronym        AS unidade,
-                p.terminoprevisto AS termino_previsto
+                p.codigoplanooperativo,
+                p.nome              AS entidade,
+                p.ano,
+                p.descricao,
+                p.inicioprevisto,
+                p.iniciorealizado,
+                p.terminoprevisto,
+                p.terminorealizado,
+                sts.codigoStatus    AS codigo_status,
+                sts.nome            AS status,
+                ag.agencyId,
+                ag.name             AS agency,
+                ag.acronym,
+                p.modifiedDate,
+                p.createDate,
+                p.uuid_,
+                p.originUuid,
+                p.percentualConclusao,
+                p.responsavelId,
+                r.nome              AS responsavel,
+                p.fatherUuid,
+                t_n3.tagId,
+                t_n3.name           AS tag,
+                p.ativo
             FROM {S}.planooperativo p
             {n2_join}
+            {n3_tag_join}
             LEFT JOIN {S}.agency ag ON ag.agencyId = p.agencyId
             LEFT JOIN {S}.responsavel r ON r.responsavelId = p.responsavelId
-            LEFT JOIN {S}.status s ON s.codigoStatus = p.codigoStatus
+            LEFT JOIN {S}.status sts ON sts.codigoStatus = p.codigoStatus
             {where}
             ORDER BY p.nome
         """, params)
