@@ -420,7 +420,7 @@ tbody td{padding:7px 10px;color:#1a2742;vertical-align:top;line-height:1.3;}
           <table id="tbl-ctrl" class="tbl-pontos">
             <colgroup><col class="c-unidade"><col class="c-encam"><col class="c-resp"><col class="c-comentario"><col class="c-termino"><col class="c-status"><col class="c-entidades"><col class="c-link"></colgroup>
             <thead><tr>
-              <th class="th-sort" data-col="unidade" onclick="sortCol('pontos-controle','unidade')">Unidade</th>
+              <th class="th-sort" data-col="sigla" onclick="sortCol('pontos-controle','sigla')">Unidade</th>
               <th class="th-sort" data-col="encaminhamento" onclick="sortCol('pontos-controle','encaminhamento')">Encaminhamento</th>
               <th class="th-sort" data-col="responsavel" onclick="sortCol('pontos-controle','responsavel')">Responsável</th>
               <th class="th-sort" data-col="ultimo_comentario" onclick="sortCol('pontos-controle','ultimo_comentario')">Último Comentário</th>
@@ -452,7 +452,7 @@ tbody td{padding:7px 10px;color:#1a2742;vertical-align:top;line-height:1.3;}
           <table id="tbl-bal" class="tbl-pontos">
             <colgroup><col class="c-unidade"><col class="c-encam"><col class="c-resp"><col class="c-comentario"><col class="c-termino"><col class="c-status"><col class="c-entidades"><col class="c-link"></colgroup>
             <thead><tr>
-              <th class="th-sort" data-col="unidade" onclick="sortCol('pontos-balanco','unidade')">Unidade</th>
+              <th class="th-sort" data-col="sigla" onclick="sortCol('pontos-balanco','sigla')">Unidade</th>
               <th class="th-sort" data-col="encaminhamento" onclick="sortCol('pontos-balanco','encaminhamento')">Encaminhamento</th>
               <th class="th-sort" data-col="responsavel" onclick="sortCol('pontos-balanco','responsavel')">Responsável</th>
               <th class="th-sort" data-col="ultimo_comentario" onclick="sortCol('pontos-balanco','ultimo_comentario')">Último Comentário</th>
@@ -717,7 +717,7 @@ function rowHtml(page, r) {
     <td><span class="td-status"><span class="td-dot" style="background:${statusColor(r.status)}"></span>${r.status||'—'}</span></td>
     <td>${r.unidade||'—'}</td></tr>`;
   return `<tr>
-    <td>${r.unidade||'—'}</td><td>${r.encaminhamento||'—'}</td>
+    <td>${r.sigla||'—'}</td><td>${r.encaminhamento||'—'}</td>
     <td>${r.responsavel||'—'}</td><td style="color:#5a7190">${r.ultimo_comentario||'—'}</td>
     <td>${fmtDate(r.termino_previsto)}</td>
     <td><span class="td-status"><span class="td-dot" style="background:${statusColor(r.status)}"></span>${r.status||'—'}</span></td>

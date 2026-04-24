@@ -513,68 +513,86 @@ def pontos(
     try:
         cur = conn.cursor()
 
-        w      = ["a.assignmentTypeValue = ?", "a.clientId = ?",
-                  "a.deleted = 0", "a.active_ = 1"]
-        params: list = [tipo, CLIENT_ID]
-
+        # Unidade filter via unitunitrel (JOIN antes do WHERE)
         if unidade:
-            w.append("ag_e.acronym = ?")
-            params.append(unidade)
+            agency_filter_join = f"""
+                JOIN {S}.unitunitrel _uu ON _uu.possessedUnitUuid = ass.uuid_
+                JOIN {S}.agency _ag ON _ag.uuid_ = _uu.ownerUnitUuid
+                  AND _ag.acronym = ?
+            """
+            agency_params: list = [unidade]
+        else:
+            agency_filter_join = ""
+            agency_params = []
+
+        w: list = ["ass.assignmentTypeValue = ?", "ass.clientId = ?", "ass.active_ = 1"]
+        w_params: list = [tipo, CLIENT_ID]
+
         if trimestre:
-            w.append(f"{q_trim('a.predictDate')} = ?")
-            params.append(trimestre)
+            w.append(f"{q_trim('ass.predictDate')} = ?")
+            w_params.append(trimestre)
         if mes:
-            w.append("MONTH(a.predictDate) = ?")
-            params.append(mes)
+            w.append("MONTH(ass.predictDate) = ?")
+            w_params.append(mes)
         if search:
-            w.append("UPPER(a.text_) LIKE UPPER(?)")
-            params.append(f"%{search}%")
+            w.append("UPPER(ass.text_) LIKE UPPER(?)")
+            w_params.append(f"%{search}%")
         where = "WHERE " + " AND ".join(w)
 
-        # Sub-select para agency via latest history (evita linhas duplicadas)
-        agency_join = f"""
-            LEFT JOIN (
-              SELECT assignmentId, MAX(historyId) AS maxH
-              FROM {S}.assignment_history GROUP BY assignmentId
-            ) lh ON lh.assignmentId = a.assignmentId
-            LEFT JOIN {S}.assignment_agency_history aah ON aah.historyId = lh.maxH
-            LEFT JOIN {S}.agency ag_e ON ag_e.agencyId = aah.agencyId
-        """
+        all_params = agency_params + w_params
 
         donut = rows(cur, f"""
-            SELECT s.nome AS status, COUNT(DISTINCT a.assignmentId) AS qtd
-            FROM {S}.assignment a
-            LEFT JOIN {S}.status s ON s.codigoStatus = a.statusId
-            {agency_join}
+            SELECT s.nome AS status, COUNT(DISTINCT ass.assignmentId) AS qtd
+            FROM {S}.assignment ass
+            {agency_filter_join}
+            LEFT JOIN {S}.status s ON s.codigoStatus = ass.statusId
             {where}
             GROUP BY s.nome ORDER BY qtd DESC
-        """, params)
+        """, all_params)
 
         tabela = rows(cur, f"""
             SELECT TOP 3000
-                ag_e.acronym                AS sigla,
-                a.text_                     AS encaminhamento,
-                r.nome                      AS responsavel,
-                ahx.description             AS ultimo_comentario,
-                CAST(a.predictDate AS DATE) AS termino_previsto,
-                s.nome                      AS status,
-                aeh.name                    AS entidades,
-                a.uuid_                     AS url
-            FROM {S}.assignment a
-            LEFT JOIN {S}.status s ON s.codigoStatus = a.statusId
-            LEFT JOIN {S}.assignment_engager_rel er ON er.assignmentId = a.assignmentId
-              AND er.type_ = 'RESPONSAVEL' AND er.main = 1
-            LEFT JOIN {S}.responsavel r ON r.uuid_ = er.referenceUuid
-            {agency_join}
-            LEFT JOIN {S}.assignment_history ahx ON ahx.historyId = lh.maxH
-            LEFT JOIN {S}.assignment_entity_history aeh ON aeh.historyId = lh.maxH
+                ass.assignmentId,
+                ass.text_                       AS encaminhamento,
+                resp.nome                       AS responsavel,
+                ass.createDate                  AS encaminhamento_criacao,
+                CAST(ass.predictDate AS DATE)   AS termino_previsto,
+                (SELECT TOP 1 nt.texto
+                 FROM {S}.nota nt
+                 WHERE nt.unitUuid = ass.uuid_
+                 ORDER BY nt.dataCriacao DESC)   AS ultimo_comentario,
+                (SELECT TOP 1 ag2.acronym
+                 FROM {S}.agency ag2
+                 JOIN {S}.unitunitrel uu2 ON uu2.ownerUnitUuid = ag2.uuid_
+                 WHERE uu2.possessedUnitUuid = ass.uuid_) AS sigla,
+                COALESCE(
+                  (SELECT TOP 1 acao.nome
+                   FROM {S}.acaoprioritaria acao
+                   JOIN {S}.unitunitrel uu3 ON uu3.ownerUnitUuid = acao.uuid_
+                   WHERE uu3.possessedUnitUuid = ass.uuid_), ''
+                ) || '###' || COALESCE(
+                  (SELECT TOP 1 p.nome
+                   FROM {S}.planooperativo p
+                   JOIN {S}.unitunitrel uu4 ON uu4.ownerUnitUuid = p.uuid_
+                   WHERE uu4.possessedUnitUuid = ass.uuid_), ''
+                )                               AS entidades,
+                s.nome                          AS status,
+                ass.assignmentTypeValue         AS tipo_encaminhamento,
+                'https://sergipe.plataformatarget.com.br/web/govse/gerenciador-assignment#/edit/'
+                || CAST(ass.assignmentId AS VARCHAR) AS url
+            FROM {S}.assignment ass
+            {agency_filter_join}
+            LEFT JOIN {S}.assignment_engager_rel resprel
+              ON resprel.assignmentId = ass.assignmentId AND resprel.main = 1
+            LEFT JOIN {S}.responsavel resp ON resp.uuid_ = resprel.referenceUuid
+            LEFT JOIN {S}.status s ON s.codigoStatus = ass.statusId
             {where}
-            ORDER BY ag_e.acronym, a.predictDate
-        """, params)
+            ORDER BY ass.predictDate
+        """, all_params)
 
-        # Remover HTML do campo encaminhamento
         for row in tabela:
-            row["encaminhamento"] = strip_html(row.get("encaminhamento") or "")
+            row["encaminhamento"]    = strip_html(row.get("encaminhamento")    or "")
+            row["ultimo_comentario"] = strip_html(row.get("ultimo_comentario") or "")
 
         result = {"donut": donut, "total": sum(r["qtd"] for r in donut), "tabela": tabela}
         cache_set(key, result)
