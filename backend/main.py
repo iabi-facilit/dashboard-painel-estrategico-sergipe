@@ -515,17 +515,17 @@ def pontos(
 
         # Unidade filter via unitunitrel (JOIN antes do WHERE)
         if unidade:
-            agency_filter_join = f"""
+            af_join = f"""
                 JOIN {S}.unitunitrel _uu ON _uu.possessedUnitUuid = ass.uuid_
                 JOIN {S}.agency _ag ON _ag.uuid_ = _uu.ownerUnitUuid
                   AND _ag.acronym = ?
             """
-            agency_params: list = [unidade]
+            af_params: list = [unidade]
         else:
-            agency_filter_join = ""
-            agency_params = []
+            af_join   = ""
+            af_params = []
 
-        w: list = ["ass.assignmentTypeValue = ?", "ass.clientId = ?", "ass.active_ = 1"]
+        w: list     = ["ass.assignmentTypeValue = ?", "ass.clientId = ?", "ass.active_ = 1"]
         w_params: list = [tipo, CLIENT_ID]
 
         if trimestre:
@@ -537,64 +537,105 @@ def pontos(
         if search:
             w.append("UPPER(ass.text_) LIKE UPPER(?)")
             w_params.append(f"%{search}%")
-        where = "WHERE " + " AND ".join(w)
+        where     = "WHERE " + " AND ".join(w)
+        all_p     = af_params + w_params
 
-        all_params = agency_params + w_params
-
+        # ── donut ─────────────────────────────────────────
         donut = rows(cur, f"""
             SELECT s.nome AS status, COUNT(DISTINCT ass.assignmentId) AS qtd
             FROM {S}.assignment ass
-            {agency_filter_join}
+            {af_join}
             LEFT JOIN {S}.status s ON s.codigoStatus = ass.statusId
             {where}
             GROUP BY s.nome ORDER BY qtd DESC
-        """, all_params)
+        """, all_p)
 
-        tabela = rows(cur, f"""
+        # ── tabela base (sem subqueries) ──────────────────
+        base = rows(cur, f"""
             SELECT TOP 3000
                 ass.assignmentId,
+                ass.uuid_                       AS _uuid,
                 ass.text_                       AS encaminhamento,
                 resp.nome                       AS responsavel,
                 ass.createDate                  AS encaminhamento_criacao,
                 CAST(ass.predictDate AS DATE)   AS termino_previsto,
-                (SELECT TOP 1 nt.texto
-                 FROM {S}.nota nt
-                 WHERE nt.unitUuid = ass.uuid_
-                 ORDER BY nt.dataCriacao DESC)   AS ultimo_comentario,
-                (SELECT TOP 1 ag2.acronym
-                 FROM {S}.agency ag2
-                 JOIN {S}.unitunitrel uu2 ON uu2.ownerUnitUuid = ag2.uuid_
-                 WHERE uu2.possessedUnitUuid = ass.uuid_) AS sigla,
-                COALESCE(
-                  (SELECT TOP 1 acao.nome
-                   FROM {S}.acaoprioritaria acao
-                   JOIN {S}.unitunitrel uu3 ON uu3.ownerUnitUuid = acao.uuid_
-                   WHERE uu3.possessedUnitUuid = ass.uuid_), ''
-                ) || '###' || COALESCE(
-                  (SELECT TOP 1 p.nome
-                   FROM {S}.planooperativo p
-                   JOIN {S}.unitunitrel uu4 ON uu4.ownerUnitUuid = p.uuid_
-                   WHERE uu4.possessedUnitUuid = ass.uuid_), ''
-                )                               AS entidades,
                 s.nome                          AS status,
                 ass.assignmentTypeValue         AS tipo_encaminhamento,
                 'https://sergipe.plataformatarget.com.br/web/govse/gerenciador-assignment#/edit/'
                 || CAST(ass.assignmentId AS VARCHAR) AS url
             FROM {S}.assignment ass
-            {agency_filter_join}
+            {af_join}
             LEFT JOIN {S}.assignment_engager_rel resprel
               ON resprel.assignmentId = ass.assignmentId AND resprel.main = 1
             LEFT JOIN {S}.responsavel resp ON resp.uuid_ = resprel.referenceUuid
             LEFT JOIN {S}.status s ON s.codigoStatus = ass.statusId
             {where}
             ORDER BY ass.predictDate
-        """, all_params)
+        """, all_p)
 
-        for row in tabela:
-            row["encaminhamento"]    = strip_html(row.get("encaminhamento")    or "")
-            row["ultimo_comentario"] = strip_html(row.get("ultimo_comentario") or "")
+        if base:
+            # ── sigla via unitunitrel → agency ────────────
+            if unidade:
+                sig_map: dict = {}   # sigla = unidade para todos os registros filtrados
+            else:
+                sig_rows = rows(cur, f"""
+                    SELECT ass.uuid_ AS uuid, MAX(ag.acronym) AS sigla
+                    FROM {S}.assignment ass
+                    JOIN {S}.unitunitrel uu ON uu.possessedUnitUuid = ass.uuid_
+                    JOIN {S}.agency ag ON ag.uuid_ = uu.ownerUnitUuid
+                    {where}
+                    GROUP BY ass.uuid_
+                """, w_params)
+                sig_map = {r["uuid"]: r["sigla"] for r in sig_rows}
 
-        result = {"donut": donut, "total": sum(r["qtd"] for r in donut), "tabela": tabela}
+            # ── N2 nome via unitunitrel → acaoprioritaria ─
+            n2_rows = rows(cur, f"""
+                SELECT ass.uuid_ AS uuid, MAX(acao.nome) AS n2_nome
+                FROM {S}.assignment ass
+                {af_join}
+                JOIN {S}.unitunitrel uu ON uu.possessedUnitUuid = ass.uuid_
+                JOIN {S}.acaoprioritaria acao ON acao.uuid_ = uu.ownerUnitUuid
+                {where}
+                GROUP BY ass.uuid_
+            """, all_p)
+            n2_map = {r["uuid"]: r["n2_nome"] for r in n2_rows}
+
+            # ── N3 nome via unitunitrel → planooperativo ──
+            n3_rows = rows(cur, f"""
+                SELECT ass.uuid_ AS uuid, MAX(p.nome) AS n3_nome
+                FROM {S}.assignment ass
+                {af_join}
+                JOIN {S}.unitunitrel uu ON uu.possessedUnitUuid = ass.uuid_
+                JOIN {S}.planooperativo p ON p.uuid_ = uu.ownerUnitUuid
+                {where}
+                GROUP BY ass.uuid_
+            """, all_p)
+            n3_map = {r["uuid"]: r["n3_nome"] for r in n3_rows}
+
+            # ── último comentário via nota ─────────────────
+            # ORDER BY dataCriacao DESC → Python pega o primeiro por uuid
+            nota_rows = rows(cur, f"""
+                SELECT nt.unitUuid AS uuid, nt.texto
+                FROM {S}.nota nt
+                JOIN {S}.assignment ass ON ass.uuid_ = nt.unitUuid
+                {af_join}
+                {where}
+                ORDER BY nt.dataCriacao DESC
+            """, all_p)
+            nota_map: dict = {}
+            for r in nota_rows:
+                if r["uuid"] not in nota_map:
+                    nota_map[r["uuid"]] = r["texto"]
+
+            # ── merge ──────────────────────────────────────
+            for row in base:
+                uuid = row.pop("_uuid")
+                row["sigla"]            = unidade if unidade else sig_map.get(uuid)
+                row["entidades"]        = (n2_map.get(uuid) or "") + "###" + (n3_map.get(uuid) or "")
+                row["ultimo_comentario"] = strip_html(nota_map.get(uuid) or "")
+                row["encaminhamento"]   = strip_html(row.get("encaminhamento") or "")
+
+        result = {"donut": donut, "total": sum(r["qtd"] for r in donut), "tabela": base}
         cache_set(key, result)
         return result
     finally:
