@@ -914,6 +914,14 @@ const _sbRo = new ResizeObserver(syncSbDonutNum);
 const _sbWrap = document.querySelector('.donut-wrap');
 if (_sbWrap) _sbRo.observe(_sbWrap);
 
+// ── WINDOW RESIZE (handles browser zoom) ─────────────
+function handleWindowResize() {
+  Object.values(charts).forEach(c => { if (c) c.resize(); });
+  syncDcCtrSizes();
+  syncSbDonutNum();
+}
+window.addEventListener('resize', debounce(handleWindowResize, 80));
+
 // ── INIT ──────────────────────────────────────────────
 async function init() {
   filtros = await fetch('/api/filtros').then(r => r.json()).catch(() => ({ unidades: [], eixos: [], trimestres: [], meses: [] }));
